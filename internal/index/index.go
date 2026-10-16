@@ -13,7 +13,7 @@ type Neighbor struct {
 
 // Index stores the locations of drivers and finds the nearest ones
 type Index interface {
-	Upsert(id DriverID, p geo.Point)
+	Upsert(id DriverID, p geo.Point)       // p must be valid
 	Remove(id DriverID)                    // no-op if id is absent
 	Nearest(p geo.Point, k int) []Neighbor // up to k, sorted by distance
 }
