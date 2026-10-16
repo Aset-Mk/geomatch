@@ -21,3 +21,13 @@ func Distance(a, b Point) float64 {
 
 	return 2 * earthRadius * math.Asin(math.Sqrt(h))
 }
+
+// Offset shifts point p by a specified number of meters in the north and east directions
+func Offset(p Point, north, east float64) Point {
+	const metersPerDegree = earthRadius * math.Pi / 180
+
+	return Point{
+		Lat: p.Lat + north/metersPerDegree,
+		Lon: p.Lon + east/(metersPerDegree*math.Cos(p.Lat*math.Pi/180)),
+	}
+}
