@@ -1,7 +1,9 @@
 package index
 
 import (
+	"cmp"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/Aset-Mk/geomatch/internal/geo"
@@ -81,5 +83,35 @@ func TestNearestNonPositiveK(t *testing.T) {
 		if got := idx.Nearest(queryPoint, k); len(got) != 0 {
 			t.Fatalf("k=%d: got %v, want empty", k, ids(got))
 		}
+	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	idx := NewNaive()
+	var wg sync.WaitGroup
+
+	for i := range 50 {
+		id := DriverID(i)
+		wg.Go(func() {
+			for j := range 100 {
+				idx.Upsert(id, geo.Point{Lat: 55.75 + float64(j)*0.0001, Lon: 37.61})
+			}
+			idx.Remove(id)
+		})
+		wg.Go(func() {
+			for range 100 {
+				got := idx.Nearest(queryPoint, 5)
+				if !slices.IsSortedFunc(got, func(a, b Neighbor) int {
+					return cmp.Compare(a.Dist, b.Dist)
+				}) {
+					t.Errorf("result not sorted: %v", got)
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+	if got := idx.Nearest(queryPoint, 5); len(got) != 0 {
+		t.Fatalf("got %v, want empty", ids(got))
 	}
 }
