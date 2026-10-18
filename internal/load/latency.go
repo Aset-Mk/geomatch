@@ -1,6 +1,7 @@
 package load
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/HdrHistogram/hdrhistogram-go"
@@ -44,3 +45,16 @@ func (r *Recorder) Summary() Summary {
 		Max:   r.h.Max(),
 	}
 }
+
+// LogValue formats latencies as durations for human-readable logs
+func (s Summary) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int64("count", s.Count),
+		slog.String("p50", us(s.P50).String()),
+		slog.String("p99", us(s.P99).String()),
+		slog.String("p999", us(s.P999).String()),
+		slog.String("max", us(s.Max).String()),
+	)
+}
+
+func us(v int64) time.Duration { return time.Duration(v) * time.Microsecond }
