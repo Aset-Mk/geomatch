@@ -31,6 +31,8 @@ go.work.sum
 # Build output
 /bin/
 
+results.json
+
 # Editor/IDE
 # .idea/
 # .vscode/

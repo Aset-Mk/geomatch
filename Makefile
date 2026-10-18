@@ -1,4 +1,4 @@
-.PHONY: build run test bench lint
+.PHONY: build run test bench lint loadgen
 
 build:
 	go build -o bin/matcher ./cmd/matcher
@@ -15,3 +15,6 @@ bench:
 
 lint:
 	golangci-lint run ./...
+
+loadgen:
+	go run ./cmd/loadgen
