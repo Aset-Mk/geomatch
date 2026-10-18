@@ -17,5 +17,11 @@ func main() {
 
 	logger := logging.New(cfg.LogLevel)
 	slog.SetDefault(logger)
-	slog.Info("loadgen started")
+
+	lcfg, err := loadLoadgenConfig()
+	if err != nil {
+		slog.Error("invalid loadgen config", "err", err)
+		os.Exit(1)
+	}
+	slog.Info("loadgen started", "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
 }
