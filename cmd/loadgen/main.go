@@ -34,7 +34,7 @@ func main() {
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
 	ordersRand := rand.New(rand.NewPCG(lcfg.Seed, 2))
 
-	b := sim.MoscowMKAD
+	b := sim.CityBounds
 	idx := index.NewNaive()
 	drivers := load.NewDrivers(lcfg.Drivers, b, driversRand)
 

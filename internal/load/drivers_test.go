@@ -24,14 +24,14 @@ func (c *upsertCounter) Nearest(geo.Point, int) []index.Neighbor { return nil }
 
 func TestRunDriversUpdatesEachTwice(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
-	drivers := NewDrivers(10, sim.MoscowMKAD, r)
+	drivers := NewDrivers(10, sim.CityBounds, r)
 	start := make([]geo.Point, len(drivers))
 	for i, d := range drivers {
 		start[i] = d.Pos
 	}
 
 	c := &upsertCounter{counts: map[index.DriverID]int{}, last: map[index.DriverID]geo.Point{}}
-	RunDrivers(c, drivers, sim.MoscowMKAD, r, 100*time.Millisecond, 200*time.Millisecond)
+	RunDrivers(c, drivers, sim.CityBounds, r, 100*time.Millisecond, 200*time.Millisecond)
 
 	for i, d := range drivers {
 		if got := c.counts[d.ID]; got != 2 {

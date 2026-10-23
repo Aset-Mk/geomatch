@@ -11,8 +11,8 @@ type Bounds struct {
 	Min, Max geo.Point // southwest and northeast corners
 }
 
-// MoscowMKAD roughly covers the area inside MKAD
-var MoscowMKAD = Bounds{
+// CityBounds roughly covers the area inside MKAD
+var CityBounds = Bounds{
 	Min: geo.Point{Lat: 55.57, Lon: 37.36},
 	Max: geo.Point{Lat: 55.92, Lon: 37.86},
 }

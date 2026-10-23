@@ -10,7 +10,7 @@ import (
 
 func TestStepStaysInBounds(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
-	b := MoscowMKAD
+	b := CityBounds
 	d := Driver{Pos: geo.Point{Lat: b.Max.Lat, Lon: b.Max.Lon}, Heading: 0, Speed: 10}
 
 	for i := range 10_000 {
@@ -26,7 +26,7 @@ func TestStepStaysInBounds(t *testing.T) {
 }
 
 func TestStepBouncesOffEdges(t *testing.T) {
-	b := MoscowMKAD
+	b := CityBounds
 	midLat := (b.Min.Lat + b.Max.Lat) / 2
 	midLon := (b.Min.Lon + b.Max.Lon) / 2
 
