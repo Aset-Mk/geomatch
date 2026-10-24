@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"os"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/Aset-Mk/geomatch/internal/config"
@@ -43,6 +44,15 @@ func main() {
 		idx.Upsert(d.ID, d.Pos)
 	}
 
+	if lcfg.CPUProfile != "" {
+		stop, err := startCPUProfile(lcfg.CPUProfile)
+		if err != nil {
+			slog.Error("start cpu profile", "err", err)
+			os.Exit(1)
+		}
+		defer stop()
+	}
+
 	rec := load.NewRecorder()
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -65,4 +75,23 @@ func main() {
 		slog.Error("write summary", "err", err)
 		os.Exit(1)
 	}
+
+}
+
+// startCPUProfile writes a CPU profile to path until the returned stop is called
+func startCPUProfile(path string) (stop func(), err error) {
+	f, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := pprof.StartCPUProfile(f); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return func() {
+		pprof.StopCPUProfile()
+		if err := f.Close(); err != nil {
+			slog.Error("close cpu profile", "err", err)
+		}
+	}, nil
 }

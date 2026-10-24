@@ -15,6 +15,7 @@ type loadgenConfig struct {
 	Duration     time.Duration
 	Seed         uint64
 	Out          string
+	CPUProfile   string // empty disables profiling
 }
 
 func loadLoadgenConfig() (loadgenConfig, error) {
@@ -26,6 +27,7 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 		Duration:     env("DURATION", 30*time.Second, time.ParseDuration, &errs),
 		Seed:         env("SEED", 1, parseUint, &errs),
 		Out:          env("OUT", "results.json", parseString, &errs),
+		CPUProfile:   env("CPU_PROFILE", "", parseString, &errs),
 	}
 
 	if cfg.Drivers <= 0 {
