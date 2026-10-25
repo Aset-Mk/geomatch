@@ -2,6 +2,7 @@ package load
 
 import (
 	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
@@ -49,5 +50,24 @@ func TestRunOrdersCountsStall(t *testing.T) {
 	// a delay of 50 ms with a flow rate of 1 request/ms results in requests 0 through 40 being delayed by 10 ms or more
 	if slow < 40 {
 		t.Fatalf("got %d orders slower than 10ms, want >= 30", slow)
+	}
+}
+
+type noop struct{}
+
+func (noop) Upsert(index.DriverID, geo.Point)        {}
+func (noop) Remove(index.DriverID)                   {}
+func (noop) Nearest(geo.Point, int) []index.Neighbor { return nil }
+
+func TestRunOrdersKeepsSchedule(t *testing.T) {
+	r := rand.New(rand.NewPCG(1, 1))
+	var lat []time.Duration
+	RunOrders(noop{}, sim.CityBounds, r, 200, 500*time.Millisecond, func(d time.Duration) {
+		lat = append(lat, d)
+	})
+
+	slices.Sort(lat)
+	if p50 := lat[len(lat)/2]; p50 > 50*time.Microsecond {
+		t.Fatalf("p50 = %v for an index that does nothing, want <= 50µs", p50)
 	}
 }

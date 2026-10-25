@@ -16,11 +16,20 @@ func RunOrders(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.D
 
 	for i := range n {
 		scheduled := start.Add(time.Duration(i) * interval)
-		if wait := time.Until(scheduled); wait > 0 {
-			time.Sleep(wait)
-		}
+		waitUntil(scheduled)
 
 		idx.Nearest(b.RandomPoint(r), 5)
 		record(time.Since(scheduled))
+	}
+}
+
+// time.Sleep can wake up 1ms late, so the last spinWindow before t is busy-waited
+const spinWindow = 2 * time.Millisecond
+
+func waitUntil(t time.Time) {
+	if d := time.Until(t) - spinWindow; d > 0 {
+		time.Sleep(d)
+	}
+	for time.Now().Before(t) {
 	}
 }
