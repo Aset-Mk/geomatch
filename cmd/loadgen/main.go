@@ -30,13 +30,16 @@ func main() {
 		slog.Error("invalid loadgen config", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("loadgen started", "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
+	slog.Info("loadgen started", "index", lcfg.Index, "cell_size", lcfg.CellSize, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
 
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
 	ordersRand := rand.New(rand.NewPCG(lcfg.Seed, 2))
 
 	b := sim.CityBounds
-	idx := index.NewNaive()
+	var idx index.Index = index.NewNaive()
+	if lcfg.Index == "grid" {
+		idx = index.NewGrid(lcfg.CellSize, (b.Min.Lat+b.Max.Lat)/2)
+	}
 	drivers := load.NewDrivers(lcfg.Drivers, b, driversRand)
 
 	// Populate the index before orders start coming in, so that all drivers are visible as soon as the first orders arrive

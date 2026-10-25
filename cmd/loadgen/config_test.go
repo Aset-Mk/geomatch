@@ -11,6 +11,8 @@ func TestLoadLoadgenConfig(t *testing.T) {
 		{"not a number", "DRIVERS", "abc", true},
 		{"zero drivers", "DRIVERS", "0", true},
 		{"bad duration", "UPDATE_PERIOD", "1x", true},
+		{"unknown index", "INDEX", "rtree", true},
+		{"zero cell size", "CELL_SIZE", "0", true},
 	}
 
 	for _, tt := range tests {
