@@ -50,6 +50,22 @@ func BenchmarkNearest(b *testing.B) {
 	}
 }
 
+func BenchmarkNearestFewDrivers(b *testing.B) {
+	lat := (sim.CityBounds.Min.Lat + sim.CityBounds.Max.Lat) / 2
+	for _, n := range []int{10, 100, 300, 1000, 3000, 10_000} {
+		b.Run(fmt.Sprintf("drivers=%d", n), func(b *testing.B) {
+			r := rand.New(rand.NewPCG(1, 1))
+			idx := index.NewGrid(200, lat)
+			for _, d := range load.NewDrivers(n, sim.CityBounds, r) {
+				idx.Upsert(d.ID, d.Pos)
+			}
+			for b.Loop() {
+				idx.Nearest(sim.CityBounds.RandomPoint(r), 5)
+			}
+		})
+	}
+}
+
 func BenchmarkUpsert(b *testing.B) {
 	for _, impl := range benchImpls() {
 		b.Run(impl.name, func(b *testing.B) {

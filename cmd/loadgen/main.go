@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"sync"
+	"time"
 
 	"github.com/Aset-Mk/geomatch/internal/config"
 	"github.com/Aset-Mk/geomatch/internal/index"
@@ -30,10 +31,9 @@ func main() {
 		slog.Error("invalid loadgen config", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("loadgen started", "index", lcfg.Index, "cell_size", lcfg.CellSize, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
+	slog.Info("loadgen started", "index", lcfg.Index, "cell_size", lcfg.CellSize, "order_workers", lcfg.OrderWorkers, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
 
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
-	ordersRand := rand.New(rand.NewPCG(lcfg.Seed, 2))
 
 	b := sim.CityBounds
 	var idx index.Index = index.NewNaive()
@@ -42,7 +42,7 @@ func main() {
 	}
 	drivers := load.NewDrivers(lcfg.Drivers, b, driversRand)
 
-	// Populate the index before orders start coming in, so that all drivers are visible as soon as the first orders arrive
+	// fill the index first so the first orders already see every driver
 	for _, d := range drivers {
 		idx.Upsert(d.ID, d.Pos)
 	}
@@ -56,16 +56,36 @@ func main() {
 		defer stop()
 	}
 
-	rec := load.NewRecorder()
+	// odd streams go to drivers and even ones to orders, so one worker of each keeps the old streams
 	var wg sync.WaitGroup
-	wg.Go(func() {
-		load.RunDrivers(idx, drivers, b, driversRand, lcfg.UpdatePeriod, lcfg.Duration)
-	})
-	wg.Go(func() {
-		load.RunOrders(idx, b, ordersRand, lcfg.OrderRate, lcfg.Duration, rec.Record)
-	})
+	for i := range lcfg.DriverWorkers {
+		r := driversRand
+		if i > 0 {
+			r = rand.New(rand.NewPCG(lcfg.Seed, uint64(2*i+1)))
+		}
+		part := drivers[i*len(drivers)/lcfg.DriverWorkers : (i+1)*len(drivers)/lcfg.DriverWorkers]
+		wg.Go(func() {
+			load.RunDrivers(idx, part, b, r, lcfg.UpdatePeriod, lcfg.Duration, lcfg.UpdateBatch, lcfg.UpdateLinger)
+		})
+	}
+
+	recs := make([]*load.Recorder, lcfg.OrderWorkers)
+	rate := lcfg.OrderRate / lcfg.OrderWorkers
+	for i := range recs {
+		recs[i] = load.NewRecorder()
+		r := rand.New(rand.NewPCG(lcfg.Seed, uint64(2*i+2)))
+		offset := time.Second / time.Duration(lcfg.OrderRate) * time.Duration(i)
+		wg.Go(func() {
+			time.Sleep(offset)
+			load.RunOrders(idx, b, r, rate, lcfg.Duration, recs[i].Record)
+		})
+	}
 	wg.Wait()
 
+	rec := recs[0]
+	for _, r := range recs[1:] {
+		rec.Merge(r)
+	}
 	sum := rec.Summary()
 	slog.Info("loadgen finished", "summary", sum)
 

@@ -10,7 +10,7 @@ type Point struct {
 	Lon float64
 }
 
-// Distance returns the great-circle distance between points a and b in meters (using the haversine formula)
+// Distance returns the haversine distance between a and b in meters
 func Distance(a, b Point) float64 {
 	lat1 := a.Lat * math.Pi / 180
 	lat2 := b.Lat * math.Pi / 180
@@ -22,7 +22,7 @@ func Distance(a, b Point) float64 {
 	return 2 * earthRadius * math.Asin(math.Sqrt(h))
 }
 
-// Offset shifts point p by a specified number of meters in the north and east directions
+// Offset moves p north and east by the given number of meters
 func Offset(p Point, north, east float64) Point {
 	const metersPerDegree = earthRadius * math.Pi / 180
 

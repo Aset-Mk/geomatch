@@ -9,16 +9,16 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/geo"
 )
 
-// Grid is an Index that buckets drivers into square cells and searches outward from the query cell
+// Grid is an Index that keeps drivers in square cells and searches rings of cells around the query
 type Grid struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	cellLat float64 // degrees
 	cellLon float64 // degrees
 	latSide float64 // meters
 	pos     map[DriverID]geo.Point
 	cells   map[cell]map[DriverID]geo.Point
 
-	// rows and cols ever occupied; they only grow and guarantee the search ends
+	// rows and cols ever occupied, they only grow so the search always ends
 	minRow, maxRow, minCol, maxCol int32
 }
 
@@ -46,7 +46,18 @@ func NewGrid(size, lat float64) *Grid {
 func (g *Grid) Upsert(id DriverID, p geo.Point) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	g.upsert(id, p)
+}
 
+func (g *Grid) UpsertBatch(us []Update) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for _, u := range us {
+		g.upsert(u.ID, u.Pos)
+	}
+}
+
+func (g *Grid) upsert(id DriverID, p geo.Point) {
 	c := g.cellOf(p)
 	if old, ok := g.pos[id]; ok {
 		if oc := g.cellOf(old); oc != c {
@@ -80,8 +91,8 @@ func (g *Grid) Nearest(p geo.Point, k int) []Neighbor {
 		return nil
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 
 	best := make([]Neighbor, 0, min(k, len(g.pos))+1)
 	seen := 0
@@ -92,8 +103,20 @@ func (g *Grid) Nearest(p geo.Point, k int) []Neighbor {
 		}
 	}
 
+	if g.sparse(k) {
+		return g.nearestAll(p, k)
+	}
+
 	c := g.cellOf(p)
+	looked := 0
 	for r := int32(0); seen < len(g.pos); r++ {
+		// with few drivers most ring cells are empty, so past this point scanning all occupied cells is cheaper
+		ring := max(1, 8*int(r))
+		if looked+ring > len(g.cells) {
+			return g.nearestAll(p, k)
+		}
+		looked += ring
+
 		if r == 0 {
 			visit(c)
 		} else {
@@ -106,13 +129,27 @@ func (g *Grid) Nearest(p geo.Point, k int) []Neighbor {
 				visit(cell{row, c.col + r})
 			}
 		}
-		// Every driver not seen yet is outside the searched square, so at least r cell sides away.
+		// drivers not seen yet are outside the searched square, at least r cell sides away
 		if len(best) == k && best[k-1].Dist <= float64(r)*g.minSide(p, r) {
 			break
 		}
 		if c.row-r <= g.minRow && c.row+r >= g.maxRow && c.col-r <= g.minCol && c.col+r >= g.maxCol {
 			break
 		}
+	}
+	return best
+}
+
+// sparse reports whether rings would visit more cells than are occupied, counting one ring past the k-th driver
+func (g *Grid) sparse(k int) bool {
+	box := int64(g.maxRow-g.minRow+1) * int64(g.maxCol-g.minCol+1)
+	return 4*int64(k)*box > int64(len(g.pos))*int64(len(g.cells))
+}
+
+func (g *Grid) nearestAll(p geo.Point, k int) []Neighbor {
+	best := make([]Neighbor, 0, min(k, len(g.pos))+1)
+	for id, dp := range g.pos {
+		best = pushNearest(best, k, Neighbor{ID: id, Dist: geo.Distance(p, dp)})
 	}
 	return best
 }
@@ -132,7 +169,7 @@ func (g *Grid) drop(c cell, id DriverID) {
 	}
 }
 
-// minSide is the narrowest cell side in meters within r rings of p, taken at the latitude farthest from the equator
+// minSide is the narrowest cell side in meters within r rings of p
 func (g *Grid) minSide(p geo.Point, r int32) float64 {
 	lat := min(math.Abs(p.Lat)+float64(r+1)*g.cellLat, 90)
 	lonSide := geo.Distance(geo.Point{Lat: lat}, geo.Point{Lat: lat, Lon: g.cellLon})
