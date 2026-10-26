@@ -10,7 +10,7 @@ import (
 
 const maxTurn = 0.25 // maximum rotation per step in radians
 
-// Driver is a simulated driver moving around the city.
+// Driver is a simulated driver moving around the city
 type Driver struct {
 	ID      index.DriverID
 	Pos     geo.Point

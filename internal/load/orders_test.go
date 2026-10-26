@@ -11,13 +11,14 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/sim"
 )
 
-// stallOnce is an index for which the first call to the Nearest method is stalled
+// stallOnce is an index whose first Nearest call stalls
 type stallOnce struct {
 	stall time.Duration
 	calls int
 }
 
 func (s *stallOnce) Upsert(index.DriverID, geo.Point) {}
+func (s *stallOnce) UpsertBatch([]index.Update)       {}
 func (s *stallOnce) Remove(index.DriverID)            {}
 func (s *stallOnce) Nearest(geo.Point, int) []index.Neighbor {
 	s.calls++
@@ -47,7 +48,7 @@ func TestRunOrdersCountsStall(t *testing.T) {
 		}
 	}
 
-	// a delay of 50 ms with a flow rate of 1 request/ms results in requests 0 through 40 being delayed by 10 ms or more
+	// a 50ms stall at one order per ms delays orders 0 to 40 by 10ms or more
 	if slow < 40 {
 		t.Fatalf("got %d orders slower than 10ms, want >= 30", slow)
 	}
@@ -56,6 +57,7 @@ func TestRunOrdersCountsStall(t *testing.T) {
 type noop struct{}
 
 func (noop) Upsert(index.DriverID, geo.Point)        {}
+func (noop) UpsertBatch([]index.Update)              {}
 func (noop) Remove(index.DriverID)                   {}
 func (noop) Nearest(geo.Point, int) []index.Neighbor { return nil }
 

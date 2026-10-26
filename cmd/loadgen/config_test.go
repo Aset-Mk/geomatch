@@ -13,6 +13,8 @@ func TestLoadLoadgenConfig(t *testing.T) {
 		{"bad duration", "UPDATE_PERIOD", "1x", true},
 		{"unknown index", "INDEX", "rtree", true},
 		{"zero cell size", "CELL_SIZE", "0", true},
+		{"zero workers", "ORDER_WORKERS", "0", true},
+		{"rate not divisible", "ORDER_WORKERS", "7", true},
 	}
 
 	for _, tt := range tests {

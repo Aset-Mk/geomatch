@@ -64,6 +64,20 @@ func TestUpsertUpdatesFewerThanK(t *testing.T) {
 	})
 }
 
+func TestUpsertBatch(t *testing.T) {
+	forEachImpl(t, func(t *testing.T, idx Index) {
+		idx.UpsertBatch([]Update{
+			{1, geo.Point{Lat: 56.0, Lon: 37.61}},
+			{2, geo.Point{Lat: 55.8, Lon: 37.61}},
+			{1, queryPoint},
+		})
+
+		if got := ids(idx.Nearest(queryPoint, 5)); !slices.Equal(got, []DriverID{1, 2}) {
+			t.Fatalf("got %v, want [1 2]", got)
+		}
+	})
+}
+
 func TestRemove(t *testing.T) {
 	forEachImpl(t, func(t *testing.T, idx Index) {
 		idx.Upsert(1, queryPoint)

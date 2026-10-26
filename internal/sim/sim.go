@@ -6,7 +6,7 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/geo"
 )
 
-// Bounds is a rectangle that defines the boundaries of an area on a map
+// Bounds is a rectangle on the map
 type Bounds struct {
 	Min, Max geo.Point // southwest and northeast corners
 }

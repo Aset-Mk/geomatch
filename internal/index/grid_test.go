@@ -38,6 +38,7 @@ func TestGridMatchesNaive(t *testing.T) {
 		{500, 2000, moscow},
 		{2000, 2000, moscow},
 		{500, 3, moscow},
+		{200, 300, moscow},
 		{500, 2000, origin},
 	} {
 		t.Run(fmt.Sprintf("size=%v/drivers=%d/center=%v", tc.size, tc.drivers, tc.center), func(t *testing.T) {

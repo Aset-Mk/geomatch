@@ -8,7 +8,7 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/geo"
 )
 
-// Naive is an Index implemented using a "brute-force"
+// Naive is a brute-force Index
 type Naive struct {
 	mu      sync.Mutex
 	drivers map[DriverID]geo.Point
@@ -25,6 +25,14 @@ func (n *Naive) Upsert(id DriverID, p geo.Point) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.drivers[id] = p
+}
+
+func (n *Naive) UpsertBatch(us []Update) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, u := range us {
+		n.drivers[u.ID] = u.Pos
+	}
 }
 
 func (n *Naive) Remove(id DriverID) {

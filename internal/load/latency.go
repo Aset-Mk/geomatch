@@ -7,10 +7,10 @@ import (
 	"github.com/HdrHistogram/hdrhistogram-go"
 )
 
-// maxLatency is the maximum latency tracked by the histogram; values greater than this are capped at this limit
+// maxLatency is the largest latency the histogram holds, longer ones are clamped to it
 const maxLatency = time.Minute
 
-// Recorder collects latency values in microseconds. It is not thread-safe
+// Recorder collects latencies in microseconds, not safe for concurrent use
 type Recorder struct {
 	h *hdrhistogram.Histogram
 }
@@ -31,11 +31,16 @@ func NewRecorder() *Recorder {
 
 // Record adds one latency
 func (r *Recorder) Record(d time.Duration) {
-	// Cannot fail: d is clamped to the histogram range
+	// can not fail, d is clamped to the histogram range
 	_ = r.h.RecordValue(min(d, maxLatency).Microseconds())
 }
 
-// Summary returns the count and percentiles recorded up to this point
+// Merge adds all latencies recorded by o
+func (r *Recorder) Merge(o *Recorder) {
+	r.h.Merge(o.h)
+}
+
+// Summary returns the count and percentiles recorded so far
 func (r *Recorder) Summary() Summary {
 	return Summary{
 		Count: r.h.TotalCount(),
