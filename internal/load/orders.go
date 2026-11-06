@@ -2,6 +2,7 @@ package load
 
 import (
 	"math/rand/v2"
+	"runtime"
 	"time"
 
 	"github.com/Aset-Mk/geomatch/internal/index"
@@ -26,10 +27,20 @@ func RunOrders(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.D
 // time.Sleep can wake up 1ms late, so the last spinWindow before t is busy-waited
 const spinWindow = 2 * time.Millisecond
 
+// spinning without yielding would keep goroutines woken on this P from running for milliseconds
+const yieldUntil = 5 * time.Microsecond
+
 func waitUntil(t time.Time) {
 	if d := time.Until(t) - spinWindow; d > 0 {
 		time.Sleep(d)
 	}
-	for time.Now().Before(t) {
+	for {
+		d := time.Until(t)
+		if d <= 0 {
+			return
+		}
+		if d > yieldUntil {
+			runtime.Gosched()
+		}
 	}
 }

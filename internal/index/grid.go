@@ -15,14 +15,26 @@ type Grid struct {
 	cellLat float64 // degrees
 	cellLon float64 // degrees
 	latSide float64 // meters
-	pos     map[DriverID]geo.Point
-	cells   map[cell]map[DriverID]geo.Point
+	pos     map[DriverID]slot
+	cells   map[cell][]entry
 
 	// rows and cols ever occupied, they only grow so the search always ends
 	minRow, maxRow, minCol, maxCol int32
 }
 
 type cell struct{ row, col int32 }
+
+type entry struct {
+	id DriverID
+	p  geo.Point
+}
+
+// slot is a driver's position, cell and index in that cell's slice
+type slot struct {
+	p geo.Point
+	c cell
+	i int32
+}
 
 var _ Index = (*Grid)(nil)
 
@@ -34,8 +46,8 @@ func NewGrid(size, lat float64) *Grid {
 		cellLat: cellLat,
 		cellLon: corner.Lon,
 		latSide: geo.Distance(geo.Point{}, geo.Point{Lat: cellLat}),
-		pos:     make(map[DriverID]geo.Point),
-		cells:   make(map[cell]map[DriverID]geo.Point),
+		pos:     make(map[DriverID]slot),
+		cells:   make(map[cell][]entry),
 		minRow:  math.MaxInt32,
 		maxRow:  math.MinInt32,
 		minCol:  math.MaxInt32,
@@ -59,18 +71,18 @@ func (g *Grid) UpsertBatch(us []Update) {
 
 func (g *Grid) upsert(id DriverID, p geo.Point) {
 	c := g.cellOf(p)
-	if old, ok := g.pos[id]; ok {
-		if oc := g.cellOf(old); oc != c {
-			g.drop(oc, id)
+	if s, ok := g.pos[id]; ok {
+		if s.c == c {
+			g.cells[c][s.i].p = p
+			s.p = p
+			g.pos[id] = s
+			return
 		}
+		g.drop(s.c, s.i)
 	}
-	m := g.cells[c]
-	if m == nil {
-		m = make(map[DriverID]geo.Point)
-		g.cells[c] = m
-	}
-	m[id] = p
-	g.pos[id] = p
+	es := append(g.cells[c], entry{id, p})
+	g.cells[c] = es
+	g.pos[id] = slot{p, c, int32(len(es) - 1)}
 
 	g.minRow, g.maxRow = min(g.minRow, c.row), max(g.maxRow, c.row)
 	g.minCol, g.maxCol = min(g.minCol, c.col), max(g.maxCol, c.col)
@@ -80,8 +92,8 @@ func (g *Grid) Remove(id DriverID) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	if old, ok := g.pos[id]; ok {
-		g.drop(g.cellOf(old), id)
+	if s, ok := g.pos[id]; ok {
+		g.drop(s.c, s.i)
 		delete(g.pos, id)
 	}
 }
@@ -97,9 +109,9 @@ func (g *Grid) Nearest(p geo.Point, k int) []Neighbor {
 	best := make([]Neighbor, 0, min(k, len(g.pos))+1)
 	seen := 0
 	visit := func(c cell) {
-		for id, dp := range g.cells[c] {
+		for _, e := range g.cells[c] {
 			seen++
-			best = pushNearest(best, k, Neighbor{ID: id, Dist: geo.Distance(p, dp)})
+			best = pushNearest(best, k, Neighbor{ID: e.id, Dist: geo.Distance(p, e.p)})
 		}
 	}
 
@@ -148,8 +160,8 @@ func (g *Grid) sparse(k int) bool {
 
 func (g *Grid) nearestAll(p geo.Point, k int) []Neighbor {
 	best := make([]Neighbor, 0, min(k, len(g.pos))+1)
-	for id, dp := range g.pos {
-		best = pushNearest(best, k, Neighbor{ID: id, Dist: geo.Distance(p, dp)})
+	for id, s := range g.pos {
+		best = pushNearest(best, k, Neighbor{ID: id, Dist: geo.Distance(p, s.p)})
 	}
 	return best
 }
@@ -161,12 +173,21 @@ func (g *Grid) cellOf(p geo.Point) cell {
 	}
 }
 
-func (g *Grid) drop(c cell, id DriverID) {
-	m := g.cells[c]
-	delete(m, id)
-	if len(m) == 0 {
-		delete(g.cells, c)
+// drop removes the entry at i from cell c, moving the last entry into its place
+func (g *Grid) drop(c cell, i int32) {
+	es := g.cells[c]
+	last := int32(len(es) - 1)
+	if i != last {
+		es[i] = es[last]
+		moved := g.pos[es[i].id]
+		moved.i = i
+		g.pos[es[i].id] = moved
 	}
+	if last == 0 {
+		delete(g.cells, c)
+		return
+	}
+	g.cells[c] = es[:last]
 }
 
 // minSide is the narrowest cell side in meters within r rings of p
