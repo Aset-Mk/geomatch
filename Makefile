@@ -1,4 +1,4 @@
-.PHONY: build run test bench lint loadgen
+.PHONY: build run test bench lint loadgen plot
 
 build:
 	go build -o bin/matcher ./cmd/matcher
@@ -18,3 +18,6 @@ lint:
 
 loadgen:
 	go run ./cmd/loadgen
+
+plot:
+	cd tools/plot && go run . -out ../../docs/img
