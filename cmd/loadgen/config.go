@@ -19,9 +19,12 @@ type loadgenConfig struct {
 	Index         string  // naive or grid
 	CellSize      float64 // grid cell side, meters
 	OrderWorkers  int
+	OrderInflight int // unanswered orders per worker, 0 waits for each answer
 	DriverWorkers int
 	UpdateBatch   int
 	UpdateLinger  time.Duration
+	MatcherAddr   string // empty runs the index in this process
+	MatcherConns  int
 }
 
 func loadLoadgenConfig() (loadgenConfig, error) {
@@ -37,9 +40,12 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 		Index:         env("INDEX", "naive", parseString, &errs),
 		CellSize:      env("CELL_SIZE", 200.0, parseFloat, &errs),
 		OrderWorkers:  env("ORDER_WORKERS", 1, strconv.Atoi, &errs),
+		OrderInflight: env("ORDER_INFLIGHT", 0, strconv.Atoi, &errs),
 		DriverWorkers: env("DRIVER_WORKERS", 1, strconv.Atoi, &errs),
 		UpdateBatch:   env("UPDATE_BATCH", 1, strconv.Atoi, &errs),
 		UpdateLinger:  env("UPDATE_LINGER", 5*time.Millisecond, time.ParseDuration, &errs),
+		MatcherAddr:   env("MATCHER_ADDR", "", parseString, &errs),
+		MatcherConns:  env("MATCHER_CONNS", 1, strconv.Atoi, &errs),
 	}
 
 	if cfg.Drivers <= 0 {
@@ -47,6 +53,12 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 	}
 	if cfg.OrderRate <= 0 {
 		errs = append(errs, errors.New("ORDER_RATE must be > 0"))
+	}
+	if cfg.MatcherConns <= 0 {
+		errs = append(errs, errors.New("MATCHER_CONNS must be > 0"))
+	}
+	if cfg.OrderInflight < 0 {
+		errs = append(errs, errors.New("ORDER_INFLIGHT must be >= 0"))
 	}
 	if cfg.UpdateBatch <= 0 {
 		errs = append(errs, errors.New("UPDATE_BATCH must be > 0"))

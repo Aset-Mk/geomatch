@@ -3,6 +3,7 @@ package load
 import (
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -71,5 +72,42 @@ func TestRunOrdersKeepsSchedule(t *testing.T) {
 	slices.Sort(lat)
 	if p50 := lat[len(lat)/2]; p50 > 50*time.Microsecond {
 		t.Fatalf("p50 = %v for an index that does nothing, want <= 50µs", p50)
+	}
+}
+
+// busy is an index whose Nearest takes a while and counts calls running at once
+type busy struct {
+	noop
+	mu            sync.Mutex
+	running, peak int
+}
+
+func (b *busy) Nearest(geo.Point, int) []index.Neighbor {
+	b.mu.Lock()
+	b.running++
+	b.peak = max(b.peak, b.running)
+	b.mu.Unlock()
+
+	time.Sleep(20 * time.Millisecond)
+
+	b.mu.Lock()
+	b.running--
+	b.mu.Unlock()
+	return nil
+}
+
+func TestRunOrdersAsyncLimitsInflight(t *testing.T) {
+	idx := &busy{}
+	r := rand.New(rand.NewPCG(1, 1))
+
+	n := 0
+	RunOrdersAsync(idx, sim.CityBounds, r, 1000, 100*time.Millisecond, 5, func(time.Duration) { n++ })
+
+	if n != 100 {
+		t.Errorf("recorded %d orders, want 100", n)
+	}
+	// one order per ms against a 20ms answer would reach 20 at once without the limit
+	if idx.peak != 5 {
+		t.Errorf("%d orders waited for an answer at once, want 5", idx.peak)
 	}
 }

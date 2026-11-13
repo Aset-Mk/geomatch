@@ -6,9 +6,14 @@ import (
 	"math/rand/v2"
 	"os"
 	"runtime/pprof"
+	"slices"
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/Aset-Mk/geomatch/internal/client"
 	"github.com/Aset-Mk/geomatch/internal/config"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/load"
@@ -31,7 +36,7 @@ func main() {
 		slog.Error("invalid loadgen config", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("loadgen started", "index", lcfg.Index, "cell_size", lcfg.CellSize, "order_workers", lcfg.OrderWorkers, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
+	slog.Info("loadgen started", "matcher_addr", lcfg.MatcherAddr, "matcher_conns", lcfg.MatcherConns, "index", lcfg.Index, "cell_size", lcfg.CellSize, "order_workers", lcfg.OrderWorkers, "order_inflight", lcfg.OrderInflight, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
 
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
 
@@ -40,11 +45,37 @@ func main() {
 	if lcfg.Index == "grid" {
 		idx = index.NewGrid(lcfg.CellSize, (b.Min.Lat+b.Max.Lat)/2)
 	}
+	var remote *client.Client
+	if lcfg.MatcherAddr != "" {
+		conns := make([]grpc.ClientConnInterface, lcfg.MatcherConns)
+		for i := range conns {
+			conn, err := grpc.NewClient(lcfg.MatcherAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				slog.Error("matcher client", "err", err)
+				os.Exit(1)
+			}
+			defer func() { _ = conn.Close() }()
+			conns[i] = conn
+		}
+		remote = client.New(conns...)
+		idx = remote
+	}
 	drivers := load.NewDrivers(lcfg.Drivers, b, driversRand)
 
 	// fill the index first so the first orders already see every driver
-	for _, d := range drivers {
-		idx.Upsert(d.ID, d.Pos)
+	fill := make([]index.Update, len(drivers))
+	for i, d := range drivers {
+		fill[i] = index.Update{ID: d.ID, Pos: d.Pos}
+	}
+	// chunks keep a gRPC message far below its 4MB limit
+	for chunk := range slices.Chunk(fill, 1000) {
+		idx.UpsertBatch(chunk)
+	}
+	if remote != nil {
+		if err := remote.Flush(); err != nil {
+			slog.Error("fill matcher", "err", err)
+			os.Exit(1)
+		}
 	}
 
 	if lcfg.CPUProfile != "" {
@@ -77,10 +108,20 @@ func main() {
 		offset := time.Second / time.Duration(lcfg.OrderRate) * time.Duration(i)
 		wg.Go(func() {
 			time.Sleep(offset)
+			if lcfg.OrderInflight > 0 {
+				load.RunOrdersAsync(idx, b, r, rate, lcfg.Duration, lcfg.OrderInflight, recs[i].Record)
+				return
+			}
 			load.RunOrders(idx, b, r, rate, lcfg.Duration, recs[i].Record)
 		})
 	}
 	wg.Wait()
+	if remote != nil {
+		if err := remote.Flush(); err != nil {
+			slog.Error("matcher", "err", err)
+			os.Exit(1)
+		}
+	}
 
 	rec := recs[0]
 	for _, r := range recs[1:] {
