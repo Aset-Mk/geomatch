@@ -31,3 +31,8 @@ func Offset(p Point, north, east float64) Point {
 		Lon: p.Lon + east/(metersPerDegree*math.Cos(p.Lat*math.Pi/180)),
 	}
 }
+
+// Valid reports whether p is a point on Earth, NaN is not
+func (p Point) Valid() bool {
+	return p.Lat >= -90 && p.Lat <= 90 && p.Lon >= -180 && p.Lon <= 180
+}

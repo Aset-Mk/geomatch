@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package matcher.v1;
+
+option go_package = "github.com/Aset-Mk/geomatch/internal/pb/matcherv1;matcherv1";
+
+service Matcher {
+  // Nearest returns up to k drivers closest to the point, sorted by distance
+  rpc Nearest(NearestRequest) returns (NearestResponse);
+
+  // UpdateDrivers takes driver positions, several per message
+  rpc UpdateDrivers(stream UpdateDriversRequest) returns (UpdateDriversResponse);
+
+  // RemoveDriver drops a driver, unknown ids are ignored
+  rpc RemoveDriver(RemoveDriverRequest) returns (RemoveDriverResponse);
+}
+
+message Point {
+  double lat = 1;
+  double lon = 2;
+}
+
+message NearestRequest {
+  Point point = 1;
+  uint32 k = 2;
+}
+
+message Neighbor {
+  uint64 driver_id = 1;
+  double distance_m = 2;
+}
+
+message NearestResponse {
+  repeated Neighbor neighbors = 1;
+}
+
+message DriverUpdate {
+  uint64 driver_id = 1;
+  Point pos = 2;
+}
+
+message UpdateDriversRequest {
+  repeated DriverUpdate updates = 1;
+}
+
+message UpdateDriversResponse {}
+
+message RemoveDriverRequest {
+  uint64 driver_id = 1;
+}
+
+message RemoveDriverResponse {}
