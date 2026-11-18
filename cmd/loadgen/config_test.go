@@ -9,7 +9,7 @@ func TestLoadLoadgenConfig(t *testing.T) {
 	}{
 		{"valid drivers", "DRIVERS", "500", false},
 		{"not a number", "DRIVERS", "abc", true},
-		{"zero drivers", "DRIVERS", "0", true},
+		{"negative drivers", "DRIVERS", "-1", true},
 		{"bad duration", "UPDATE_PERIOD", "1x", true},
 		{"unknown index", "INDEX", "rtree", true},
 		{"zero cell size", "CELL_SIZE", "0", true},

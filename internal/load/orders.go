@@ -1,6 +1,7 @@
 package load
 
 import (
+	"context"
 	"math/rand/v2"
 	"runtime"
 	"sync"
@@ -10,13 +11,16 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/sim"
 )
 
-// RunOrders calls idx.Nearest rate times per second for dur
-func RunOrders(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, record func(time.Duration)) {
+// RunOrders calls idx.Nearest rate times per second for dur or until ctx is done
+func RunOrders(ctx context.Context, idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, record func(time.Duration)) {
 	interval := time.Second / time.Duration(rate)
 	n := int(dur / interval)
 	start := time.Now()
 
 	for i := range n {
+		if ctx.Err() != nil {
+			return
+		}
 		scheduled := start.Add(time.Duration(i) * interval)
 		waitUntil(scheduled)
 
@@ -26,7 +30,7 @@ func RunOrders(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.D
 }
 
 // RunOrdersAsync is RunOrders that does not wait for answers, with inflight orders unanswered the schedule falls behind
-func RunOrdersAsync(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, inflight int, record func(time.Duration)) {
+func RunOrdersAsync(ctx context.Context, idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, inflight int, record func(time.Duration)) {
 	interval := time.Second / time.Duration(rate)
 	n := int(dur / interval)
 	start := time.Now()
@@ -34,6 +38,9 @@ func RunOrdersAsync(idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur t
 	var mu sync.Mutex
 	sem := make(chan struct{}, inflight)
 	for i := range n {
+		if ctx.Err() != nil {
+			break
+		}
 		scheduled := start.Add(time.Duration(i) * interval)
 		waitUntil(scheduled)
 

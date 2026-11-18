@@ -34,7 +34,7 @@ func TestRunOrdersCountsStall(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
 
 	var lat []time.Duration
-	RunOrders(idx, sim.CityBounds, r, 1000, 100*time.Millisecond, func(d time.Duration) {
+	RunOrders(t.Context(), idx, sim.CityBounds, r, 1000, 100*time.Millisecond, func(d time.Duration) {
 		lat = append(lat, d)
 	})
 
@@ -65,7 +65,7 @@ func (noop) Nearest(geo.Point, int) []index.Neighbor { return nil }
 func TestRunOrdersKeepsSchedule(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
 	var lat []time.Duration
-	RunOrders(noop{}, sim.CityBounds, r, 200, 500*time.Millisecond, func(d time.Duration) {
+	RunOrders(t.Context(), noop{}, sim.CityBounds, r, 200, 500*time.Millisecond, func(d time.Duration) {
 		lat = append(lat, d)
 	})
 
@@ -101,7 +101,7 @@ func TestRunOrdersAsyncLimitsInflight(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
 
 	n := 0
-	RunOrdersAsync(idx, sim.CityBounds, r, 1000, 100*time.Millisecond, 5, func(time.Duration) { n++ })
+	RunOrdersAsync(t.Context(), idx, sim.CityBounds, r, 1000, 100*time.Millisecond, 5, func(time.Duration) { n++ })
 
 	if n != 100 {
 		t.Errorf("recorded %d orders, want 100", n)

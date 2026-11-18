@@ -1,6 +1,7 @@
 package load
 
 import (
+	"context"
 	"math"
 	"math/rand/v2"
 	"time"
@@ -23,8 +24,13 @@ func NewDrivers(n int, b sim.Bounds, r *rand.Rand) []sim.Driver {
 	return drivers
 }
 
-// RunDrivers steps each driver once per period for dur and sends updates in batches of up to batch, waiting no longer than linger
-func RunDrivers(idx index.Index, drivers []sim.Driver, b sim.Bounds, r *rand.Rand, period, dur time.Duration, batch int, linger time.Duration) {
+// Updater takes driver positions, an index or a client that sends them
+type Updater interface {
+	UpsertBatch(us []index.Update)
+}
+
+// RunDrivers steps each driver once per period for dur or until ctx is done and sends updates in batches of up to batch, waiting no longer than linger
+func RunDrivers(ctx context.Context, idx Updater, drivers []sim.Driver, b sim.Bounds, r *rand.Rand, period, dur time.Duration, batch int, linger time.Duration) {
 	interval := period / time.Duration(len(drivers))
 	n := int(dur / interval)
 	start := time.Now()
@@ -36,6 +42,9 @@ func RunDrivers(idx index.Index, drivers []sim.Driver, b sim.Bounds, r *rand.Ran
 	}
 
 	for i := range n {
+		if ctx.Err() != nil {
+			break
+		}
 		scheduled := start.Add(time.Duration(i) * interval)
 		if len(buf) > 0 && first.Add(linger).Before(scheduled) {
 			sleepUntil(first.Add(linger))

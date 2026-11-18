@@ -55,6 +55,9 @@ func (s *Server) Nearest(_ context.Context, req *pb.NearestRequest) (*pb.Nearest
 }
 
 func (s *Server) UpdateDrivers(stream grpc.ClientStreamingServer[pb.UpdateDriversRequest, pb.UpdateDriversResponse]) error {
+	updateStreams.Inc()
+	defer updateStreams.Dec()
+
 	var batch []index.Update
 	for {
 		req, err := stream.Recv()
@@ -82,6 +85,7 @@ func (s *Server) UpdateDrivers(stream grpc.ClientStreamingServer[pb.UpdateDriver
 			s.idx.UpsertBatch(chunk)
 			s.mu.Unlock()
 		}
+		driverUpdates.Add(float64(len(batch)))
 	}
 }
 
@@ -107,6 +111,8 @@ func (s *Server) DropSilent(cutoff time.Time) int {
 			n++
 		}
 	}
+	silentRemoved.Add(float64(n))
+	drivers.Set(float64(len(s.seen)))
 	return n
 }
 

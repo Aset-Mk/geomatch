@@ -5,6 +5,9 @@ import (
 	"math"
 	"math/rand/v2"
 	"net"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,11 +26,11 @@ import (
 )
 
 // dial starts a server over an in-memory connection
-func dial(t *testing.T, s *server.Server) *grpc.ClientConn {
+func dial(t *testing.T, s *server.Server, opts ...grpc.ServerOption) *grpc.ClientConn {
 	t.Helper()
 
 	lis := bufconn.Listen(1 << 20)
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(opts...)
 	pb.RegisterMatcherServer(srv, s)
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
@@ -198,5 +201,54 @@ func TestUpdateDriversSplitsBigMessage(t *testing.T) {
 	}
 	if total != len(us) {
 		t.Errorf("index got %d updates, want %d", total, len(us))
+	}
+}
+
+func TestFleetMatchesLocalIndex(t *testing.T) {
+	b := sim.CityBounds
+	lat := (b.Min.Lat + b.Max.Lat) / 2
+	local := index.NewGrid(200, lat)
+	srv := server.New(index.NewGrid(200, lat))
+	var streams atomic.Int64
+	count := grpc.StreamInterceptor(func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, h grpc.StreamHandler) error {
+		streams.Add(1)
+		return h(srv, ss)
+	})
+	conns := []grpc.ClientConnInterface{dial(t, srv, count), dial(t, srv, count), dial(t, srv, count)}
+	fleet := client.NewFleet(400, conns...)
+	remote := client.New(conns[0])
+
+	r := rand.New(rand.NewPCG(1, 1))
+	// the second round moves every driver, only the last position must stay
+	for range 2 {
+		us := make([]index.Update, 400)
+		for i := range us {
+			us[i] = index.Update{ID: index.DriverID(i), Pos: b.RandomPoint(r)}
+		}
+		local.UpsertBatch(us)
+		var wg sync.WaitGroup
+		for part := range slices.Chunk(us, 100) {
+			wg.Go(func() { fleet.UpsertBatch(part) })
+		}
+		wg.Wait()
+	}
+	if err := fleet.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if got := streams.Load(); got != 400 {
+		t.Errorf("400 drivers opened %d streams, want one each", got)
+	}
+
+	for range 100 {
+		p := b.RandomPoint(r)
+		got, want := remote.Nearest(p, 5), local.Nearest(p, 5)
+		if len(got) != len(want) {
+			t.Fatalf("Nearest(%v) returned %d drivers, want %d", p, len(got), len(want))
+		}
+		for i := range want {
+			if got[i].ID != want[i].ID {
+				t.Fatalf("Nearest(%v)[%d] = driver %d, want %d", p, i, got[i].ID, want[i].ID)
+			}
+		}
 	}
 }

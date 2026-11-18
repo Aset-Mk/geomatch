@@ -22,6 +22,7 @@ type Client struct {
 	mu     sync.Mutex
 	stream grpc.ClientStreamingClient[pb.UpdateDriversRequest, pb.UpdateDriversResponse]
 	err    error
+	failed atomic.Uint64
 }
 
 var _ index.Index = (*Client)(nil)
@@ -119,7 +120,16 @@ func (c *Client) closeStream() {
 	}
 }
 
+// Failed returns how many calls have failed so far
+func (c *Client) Failed() uint64 {
+	return c.failed.Load()
+}
+
 func (c *Client) fail(err error) {
+	if err == nil {
+		return
+	}
+	c.failed.Add(1)
 	if c.err == nil {
 		c.err = err
 	}

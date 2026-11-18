@@ -47,7 +47,7 @@ func testRunDriversUpdatesEachTwice(t *testing.T, batch int) {
 	}
 
 	c := &upsertCounter{counts: map[index.DriverID]int{}, last: map[index.DriverID]geo.Point{}}
-	RunDrivers(c, drivers, sim.CityBounds, r, 100*time.Millisecond, 200*time.Millisecond, batch, time.Hour)
+	RunDrivers(t.Context(), c, drivers, sim.CityBounds, r, 100*time.Millisecond, 200*time.Millisecond, batch, time.Hour)
 
 	for i, d := range drivers {
 		if got := c.counts[d.ID]; got != 2 {
@@ -65,7 +65,7 @@ func TestRunDriversLingerFlushesSparseUpdates(t *testing.T) {
 	c := &upsertCounter{counts: map[index.DriverID]int{}, last: map[index.DriverID]geo.Point{}}
 
 	// one update every 100ms, a batch of 100 never fills, so each update goes alone after linger
-	RunDrivers(c, drivers, sim.CityBounds, r, 300*time.Millisecond, 300*time.Millisecond, 100, 20*time.Millisecond)
+	RunDrivers(t.Context(), c, drivers, sim.CityBounds, r, 300*time.Millisecond, 300*time.Millisecond, 100, 20*time.Millisecond)
 
 	if c.batches != 3 {
 		t.Fatalf("got %d batches, want 3", c.batches)

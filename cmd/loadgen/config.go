@@ -3,9 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/Aset-Mk/geomatch/internal/config"
 )
 
 type loadgenConfig struct {
@@ -25,34 +27,51 @@ type loadgenConfig struct {
 	UpdateLinger  time.Duration
 	MatcherAddr   string // empty runs the index in this process
 	MatcherConns  int
+	MetricsAddr   string   // empty serves no metrics
+	DriverConns   int      // 0 sends all drivers over one stream, otherwise each driver has its own stream
+	DriverAddrs   []string // matcher addresses for driver connections, one address has only ~28k local ports
 }
 
 func loadLoadgenConfig() (loadgenConfig, error) {
 	var errs []error
 	cfg := loadgenConfig{
-		Drivers:       env("DRIVERS", 100000, strconv.Atoi, &errs),
-		UpdatePeriod:  env("UPDATE_PERIOD", 2*time.Second, time.ParseDuration, &errs),
-		OrderRate:     env("ORDER_RATE", 1000, strconv.Atoi, &errs),
-		Duration:      env("DURATION", 30*time.Second, time.ParseDuration, &errs),
-		Seed:          env("SEED", 1, parseUint, &errs),
-		Out:           env("OUT", "results.json", parseString, &errs),
-		CPUProfile:    env("CPU_PROFILE", "", parseString, &errs),
-		Index:         env("INDEX", "naive", parseString, &errs),
-		CellSize:      env("CELL_SIZE", 200.0, parseFloat, &errs),
-		OrderWorkers:  env("ORDER_WORKERS", 1, strconv.Atoi, &errs),
-		OrderInflight: env("ORDER_INFLIGHT", 0, strconv.Atoi, &errs),
-		DriverWorkers: env("DRIVER_WORKERS", 1, strconv.Atoi, &errs),
-		UpdateBatch:   env("UPDATE_BATCH", 1, strconv.Atoi, &errs),
-		UpdateLinger:  env("UPDATE_LINGER", 5*time.Millisecond, time.ParseDuration, &errs),
-		MatcherAddr:   env("MATCHER_ADDR", "", parseString, &errs),
-		MatcherConns:  env("MATCHER_CONNS", 1, strconv.Atoi, &errs),
+		Drivers:       config.Env("DRIVERS", 100000, strconv.Atoi, &errs),
+		UpdatePeriod:  config.Env("UPDATE_PERIOD", 2*time.Second, time.ParseDuration, &errs),
+		OrderRate:     config.Env("ORDER_RATE", 1000, strconv.Atoi, &errs),
+		Duration:      config.Env("DURATION", 30*time.Second, time.ParseDuration, &errs),
+		Seed:          config.Env("SEED", 1, config.Uint, &errs),
+		Out:           config.Env("OUT", "results.json", config.String, &errs),
+		CPUProfile:    config.Env("CPU_PROFILE", "", config.String, &errs),
+		Index:         config.Env("INDEX", "naive", config.String, &errs),
+		CellSize:      config.Env("CELL_SIZE", 200.0, config.Float, &errs),
+		OrderWorkers:  config.Env("ORDER_WORKERS", 1, strconv.Atoi, &errs),
+		OrderInflight: config.Env("ORDER_INFLIGHT", 0, strconv.Atoi, &errs),
+		DriverWorkers: config.Env("DRIVER_WORKERS", 1, strconv.Atoi, &errs),
+		UpdateBatch:   config.Env("UPDATE_BATCH", 1, strconv.Atoi, &errs),
+		UpdateLinger:  config.Env("UPDATE_LINGER", 5*time.Millisecond, time.ParseDuration, &errs),
+		MatcherAddr:   config.Env("MATCHER_ADDR", "", config.String, &errs),
+		MatcherConns:  config.Env("MATCHER_CONNS", 1, strconv.Atoi, &errs),
+		MetricsAddr:   config.Env("METRICS_ADDR", "", config.String, &errs),
+		DriverConns:   config.Env("DRIVER_CONNS", 0, strconv.Atoi, &errs),
 	}
 
-	if cfg.Drivers <= 0 {
-		errs = append(errs, errors.New("DRIVERS must be > 0"))
+	cfg.DriverAddrs = strings.Split(config.Env("DRIVER_ADDRS", cfg.MatcherAddr, config.String, &errs), ",")
+	if cfg.DriverConns < 0 {
+		errs = append(errs, errors.New("DRIVER_CONNS must be >= 0"))
 	}
-	if cfg.OrderRate <= 0 {
-		errs = append(errs, errors.New("ORDER_RATE must be > 0"))
+	if cfg.DriverConns > 0 && cfg.MatcherAddr == "" {
+		errs = append(errs, errors.New("DRIVER_CONNS needs MATCHER_ADDR"))
+	}
+	if cfg.DriverConns > cfg.Drivers {
+		errs = append(errs, errors.New("DRIVER_CONNS must be <= DRIVERS"))
+	}
+
+	// drivers and orders can come from separate processes, as from phones and from the order service
+	if cfg.Drivers < 0 || cfg.OrderRate < 0 {
+		errs = append(errs, errors.New("DRIVERS and ORDER_RATE must be >= 0"))
+	}
+	if cfg.Drivers == 0 && cfg.OrderRate == 0 {
+		errs = append(errs, errors.New("DRIVERS and ORDER_RATE cannot both be 0"))
 	}
 	if cfg.MatcherConns <= 0 {
 		errs = append(errs, errors.New("MATCHER_CONNS must be > 0"))
@@ -72,7 +91,7 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 		if cfg.OrderRate%cfg.OrderWorkers != 0 {
 			errs = append(errs, errors.New("ORDER_RATE must be divisible by ORDER_WORKERS"))
 		}
-		if cfg.Drivers < cfg.DriverWorkers {
+		if cfg.Drivers > 0 && cfg.Drivers < cfg.DriverWorkers {
 			errs = append(errs, errors.New("DRIVERS must be >= DRIVER_WORKERS"))
 		}
 	}
@@ -92,21 +111,3 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 	}
 	return cfg, errors.Join(errs...)
 }
-
-// env returns def if name is unset and appends parse errors to errs
-func env[T any](name string, def T, parse func(string) (T, error), errs *[]error) T {
-	s, ok := os.LookupEnv(name)
-	if !ok {
-		return def
-	}
-	v, err := parse(s)
-	if err != nil {
-		*errs = append(*errs, fmt.Errorf("%s: %w", name, err))
-		return def
-	}
-	return v
-}
-
-func parseUint(s string) (uint64, error)   { return strconv.ParseUint(s, 10, 64) }
-func parseFloat(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
-func parseString(s string) (string, error) { return s, nil }
