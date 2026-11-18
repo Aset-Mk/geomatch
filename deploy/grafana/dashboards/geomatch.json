@@ -1,0 +1,528 @@
+{
+  "uid": "geomatch",
+  "title": "geomatch",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Latency seen by the load generator",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(geomatch_loadgen_order_seconds_bucket[10s])))",
+          "legendFormat": "p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(geomatch_loadgen_order_seconds_bucket[10s])))",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.999, sum by (le) (rate(geomatch_loadgen_order_seconds_bucket[10s])))",
+          "legendFormat": "p99.9",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Nearest handler time in the matcher",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(geomatch_request_seconds_bucket{method=\"/matcher.v1.Matcher/Nearest\"}[10s])))",
+          "legendFormat": "p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(geomatch_request_seconds_bucket{method=\"/matcher.v1.Matcher/Nearest\"}[10s])))",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.999, sum by (le) (rate(geomatch_request_seconds_bucket{method=\"/matcher.v1.Matcher/Nearest\"}[10s])))",
+          "legendFormat": "p99.9",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Orders per second",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(geomatch_loadgen_order_seconds_count[10s])",
+          "legendFormat": "sent by the load generator",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "rate(geomatch_request_seconds_count{method=\"/matcher.v1.Matcher/Nearest\"}[10s])",
+          "legendFormat": "handled by the matcher",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Driver updates per second",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(geomatch_driver_updates_total[10s])",
+          "legendFormat": "updates",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "rate(geomatch_silent_drivers_removed_total[10s])",
+          "legendFormat": "silent drivers removed",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Drivers, connections, streams",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "geomatch_drivers",
+          "legendFormat": "drivers in the index",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "geomatch_connections",
+          "legendFormat": "connections",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "geomatch_update_streams",
+          "legendFormat": "update streams",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Errors and refused connections per second",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, code) (rate(geomatch_request_errors_total[10s]))",
+          "legendFormat": "{{method}} {{code}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "rate(geomatch_connections_refused_total[10s])",
+          "legendFormat": "connections refused",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "rate(geomatch_loadgen_errors_total[10s])",
+          "legendFormat": "load generator errors",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "CPU cores",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(process_cpu_seconds_total[10s])",
+          "legendFormat": "{{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Memory",
+      "gridPos": {
+        "x": 8,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_resident_memory_bytes",
+          "legendFormat": "{{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Goroutines and GC",
+      "gridPos": {
+        "x": 16,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "go_goroutines",
+          "legendFormat": "goroutines {{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "rate(go_gc_duration_seconds_count[10s])",
+          "legendFormat": "GC cycles per second {{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    }
+  ]
+}

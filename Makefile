@@ -1,4 +1,4 @@
-.PHONY: build run test bench lint loadgen plot proto
+.PHONY: build run test bench lint loadgen plot proto up down
 
 build:
 	go build -o bin/matcher ./cmd/matcher
@@ -22,6 +22,12 @@ loadgen:
 
 plot:
 	cd tools/plot && go run . -out ../../docs/img
+
+up:
+	docker compose up --build
+
+down:
+	docker compose down
 
 proto:
 	protoc --plugin=protoc-gen-go=$$(go tool -n protoc-gen-go) \

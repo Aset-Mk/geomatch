@@ -1,0 +1,6 @@
+.git
+bin
+docs
+tools/plot
+*.prof
+results.json
