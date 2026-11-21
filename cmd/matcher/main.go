@@ -2,41 +2,27 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health"
+	"github.com/twmb/franz-go/pkg/kgo"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
 
 	"github.com/Aset-Mk/geomatch/internal/config"
+	"github.com/Aset-Mk/geomatch/internal/feed"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/logging"
 	pb "github.com/Aset-Mk/geomatch/internal/pb/matcherv1"
+	"github.com/Aset-Mk/geomatch/internal/serve"
 	"github.com/Aset-Mk/geomatch/internal/server"
 	"github.com/Aset-Mk/geomatch/internal/sim"
-)
-
-// maxStreams caps requests running at once on one connection, so a client that never reads its answers cannot eat the memory
-const maxStreams = 100
-
-const (
-	// a client that connects and stays silent is dropped after handshakeTimeout
-	handshakeTimeout = 5 * time.Second
-	// a connection quiet for pingAfter gets a ping and is closed without an answer in pingTimeout
-	pingAfter   = 30 * time.Second
-	pingTimeout = 10 * time.Second
 )
 
 func main() {
@@ -59,7 +45,7 @@ func main() {
 	}
 
 	if *probe {
-		if err := check(mcfg.ListenAddr); err != nil {
+		if err := serve.Check(mcfg.ListenAddr); err != nil {
 			slog.Error("health", "err", err)
 			os.Exit(1)
 		}
@@ -75,7 +61,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "max_conns", mcfg.MaxConns)
+	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "max_conns", mcfg.MaxConns, "kafka_brokers", mcfg.KafkaBrokers, "kafka_topic", mcfg.KafkaTopic)
 	if err := run(ctx, lis, mcfg); err != nil {
 		slog.Error("serve", "err", err)
 		os.Exit(1)
@@ -85,35 +71,15 @@ func main() {
 
 // run serves on lis until ctx is done, then lets open requests finish
 func run(ctx context.Context, lis net.Listener, cfg matcherConfig) error {
-	var metrics *http.Server
-	if cfg.MetricsAddr != "" {
-		mlis, err := net.Listen("tcp", cfg.MetricsAddr)
-		if err != nil {
-			return err
-		}
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		metrics = &http.Server{Handler: mux, ReadHeaderTimeout: handshakeTimeout}
-		go func() { _ = metrics.Serve(mlis) }()
-	}
-
 	b := sim.CityBounds
-	idx := index.NewGrid(cfg.CellSize, (b.Min.Lat+b.Max.Lat)/2)
-	m := server.New(idx)
+	m := server.New(index.NewGrid(cfg.CellSize, (b.Min.Lat+b.Max.Lat)/2))
 
-	limit := server.NewLimit(cfg.MaxConns)
-	// a pool of handlers saves growing the stack of a new goroutine on every request
-	srv := grpc.NewServer(
-		grpc.MaxConcurrentStreams(maxStreams),
-		grpc.NumStreamWorkers(uint32(runtime.NumCPU())),
-		grpc.ConnectionTimeout(handshakeTimeout),
-		grpc.KeepaliveParams(keepalive.ServerParameters{Time: pingAfter, Timeout: pingTimeout}),
-		grpc.UnaryInterceptor(server.Measure),
-		grpc.StatsHandler(limit),
-	)
-	pb.RegisterMatcherServer(srv, m)
-	hs := health.NewServer()
-	healthpb.RegisterHealthServer(srv, hs)
+	svc := serve.New(cfg.Config)
+	pb.RegisterMatcherServer(svc.GRPC, m)
+
+	// a broken Kafka stops the matcher as a signal does
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 
 	go func() {
 		tick := time.NewTicker(time.Second)
@@ -130,38 +96,41 @@ func run(ctx context.Context, lis net.Listener, cfg matcherConfig) error {
 		}
 	}()
 
-	go func() {
-		<-ctx.Done()
-		slog.Info("matcher stopping")
-		hs.Shutdown()
-		// update streams do not end on their own, so the wait has a limit
-		t := time.AfterFunc(cfg.ShutdownTimeout, srv.Stop)
-		defer t.Stop()
-		srv.GracefulStop()
-		if metrics != nil {
-			_ = metrics.Close()
+	if len(cfg.KafkaBrokers) > 0 {
+		// orders wait until the index holds every driver that was on the line before the start
+		svc.Health.SetServingStatus("", healthpb.HealthCheckResponse_NOT_SERVING)
+		began := time.Now()
+		ready := func() {
+			slog.Info("index caught up with kafka", "took", time.Since(began).String())
+			svc.Health.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 		}
-	}()
+		go func() {
+			if err := follow(ctx, m, cfg, ready); err != nil {
+				cancel(fmt.Errorf("kafka: %w", err))
+			}
+		}()
+	}
 
-	return srv.Serve(limit.Listener(lis))
-}
-
-// check asks the matcher at addr whether it serves, containers run it as their health check
-func check(addr string) error {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
+	if err := svc.Run(ctx, lis); err != nil {
 		return err
 	}
-	defer func() { _ = conn.Close() }()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	resp, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
-	if err != nil {
+	if err := context.Cause(ctx); !errors.Is(err, context.Canceled) {
 		return err
-	}
-	if resp.GetStatus() != healthpb.HealthCheckResponse_SERVING {
-		return fmt.Errorf("matcher is %v", resp.GetStatus())
 	}
 	return nil
+}
+
+// follow creates the topic if the matcher is the first to start, then reads it
+func follow(ctx context.Context, m *server.Server, cfg matcherConfig, ready func()) error {
+	opts := []kgo.Opt{kgo.SeedBrokers(cfg.KafkaBrokers...)}
+	cl, err := kgo.NewClient(opts...)
+	if err != nil {
+		return err
+	}
+	err = feed.EnsureTopic(ctx, cl, cfg.KafkaTopic, cfg.KafkaPartitions)
+	cl.Close()
+	if err != nil {
+		return err
+	}
+	return m.Follow(ctx, cfg.KafkaTopic, cfg.DriverTTL, ready, opts...)
 }

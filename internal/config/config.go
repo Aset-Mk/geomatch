@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds settings read from environment variables
@@ -42,3 +43,16 @@ func Env[T any](name string, def T, parse func(string) (T, error), errs *[]error
 func String(s string) (string, error) { return s, nil }
 func Float(s string) (float64, error) { return strconv.ParseFloat(s, 64) }
 func Uint(s string) (uint64, error)   { return strconv.ParseUint(s, 10, 64) }
+
+func Int32(s string) (int32, error) {
+	n, err := strconv.ParseInt(s, 10, 32)
+	return int32(n), err
+}
+
+// List splits a comma separated list, an empty string is an empty list
+func List(s string) ([]string, error) {
+	if s == "" {
+		return nil, nil
+	}
+	return strings.Split(s, ","), nil
+}

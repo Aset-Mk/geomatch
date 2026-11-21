@@ -29,8 +29,15 @@ type Server struct {
 	pb.UnimplementedMatcherServer
 	idx index.Index
 
-	mu   sync.Mutex
-	seen map[index.DriverID]time.Time // last update of every driver in the index
+	mu    sync.Mutex
+	seen  map[index.DriverID]time.Time // time of the position of every driver in the index
+	fresh []index.Update               // scratch for apply, under mu
+}
+
+// stamped is a position with the time it was sent
+type stamped struct {
+	index.Update
+	at time.Time
 }
 
 func New(idx index.Index) *Server {
@@ -58,7 +65,7 @@ func (s *Server) UpdateDrivers(stream grpc.ClientStreamingServer[pb.UpdateDriver
 	updateStreams.Inc()
 	defer updateStreams.Dec()
 
-	var batch []index.Update
+	var batch []stamped
 	for {
 		req, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -69,33 +76,47 @@ func (s *Server) UpdateDrivers(stream grpc.ClientStreamingServer[pb.UpdateDriver
 		}
 
 		batch = batch[:0]
+		now := time.Now()
 		for _, u := range req.GetUpdates() {
 			p, err := point(u.GetPos())
 			if err != nil {
 				return err
 			}
-			batch = append(batch, index.Update{ID: index.DriverID(u.GetDriverId()), Pos: p})
+			batch = append(batch, stamped{index.Update{ID: index.DriverID(u.GetDriverId()), Pos: p}, now})
 		}
-		now := time.Now()
-		for chunk := range slices.Chunk(batch, maxApply) {
-			s.mu.Lock()
-			for _, u := range chunk {
-				s.seen[u.ID] = now
+		s.apply(batch)
+	}
+}
+
+// apply puts positions into the index in chunks, a position older than the one in the index is skipped
+func (s *Server) apply(us []stamped) {
+	for chunk := range slices.Chunk(us, maxApply) {
+		s.mu.Lock()
+		s.fresh = s.fresh[:0]
+		for _, u := range chunk {
+			if u.at.Before(s.seen[u.ID]) {
+				staleSkipped.Inc()
+				continue
 			}
-			s.idx.UpsertBatch(chunk)
-			s.mu.Unlock()
+			s.seen[u.ID] = u.at
+			s.fresh = append(s.fresh, u.Update)
 		}
-		driverUpdates.Add(float64(len(batch)))
+		s.idx.UpsertBatch(s.fresh)
+		driverUpdates.Add(float64(len(s.fresh)))
+		s.mu.Unlock()
 	}
 }
 
 func (s *Server) RemoveDriver(_ context.Context, req *pb.RemoveDriverRequest) (*pb.RemoveDriverResponse, error) {
-	id := index.DriverID(req.GetDriverId())
+	s.remove(index.DriverID(req.GetDriverId()))
+	return &pb.RemoveDriverResponse{}, nil
+}
+
+func (s *Server) remove(id index.DriverID) {
 	s.mu.Lock()
 	delete(s.seen, id)
 	s.idx.Remove(id)
 	s.mu.Unlock()
-	return &pb.RemoveDriverResponse{}, nil
 }
 
 // DropSilent removes drivers that sent nothing since cutoff and returns how many

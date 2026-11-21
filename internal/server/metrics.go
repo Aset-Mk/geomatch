@@ -1,25 +1,11 @@
 package server
 
 import (
-	"context"
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 )
 
 var (
-	requestSeconds = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "geomatch_request_seconds",
-		Help:    "Time a request spends in its handler",
-		Buckets: []float64{5e-6, 10e-6, 25e-6, 50e-6, 100e-6, 250e-6, 500e-6, 1e-3, 2.5e-3, 5e-3, 10e-3, 25e-3, 100e-3},
-	}, []string{"method"})
-	requestErrors = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "geomatch_request_errors_total",
-		Help: "Requests that ended with an error",
-	}, []string{"method", "code"})
 	driverUpdates = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "geomatch_driver_updates_total",
 		Help: "Driver positions put into the index",
@@ -36,23 +22,21 @@ var (
 		Name: "geomatch_update_streams",
 		Help: "Open streams of driver positions",
 	})
-	connections = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "geomatch_connections",
-		Help: "Open client connections",
+	updateDelay = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "geomatch_update_delay_seconds",
+		Help:    "Time from a position written to Kafka to the same position in the index, Kafka keeps milliseconds",
+		Buckets: []float64{1e-3, 2e-3, 3e-3, 4e-3, 5e-3, 6e-3, 8e-3, 10e-3, 12e-3, 15e-3, 20e-3, 25e-3, 30e-3, 40e-3, 50e-3, 60e-3, 80e-3, 100e-3, 150e-3, 200e-3, 300e-3, 500e-3, 1, 2, 5, 10, 30},
 	})
-	connectionsRefused = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "geomatch_connections_refused_total",
-		Help: "Connections closed on arrival because the limit was reached",
+	kafkaLag = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "geomatch_kafka_lag",
+		Help: "Positions written to Kafka and not yet read, over all partitions",
+	})
+	staleSkipped = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "geomatch_stale_updates_skipped_total",
+		Help: "Positions older than the one already in the index",
+	})
+	badRecords = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "geomatch_bad_records_total",
+		Help: "Kafka records that could not be read as a driver position",
 	})
 )
-
-// Measure is a unary interceptor that records the handler time and the errors of every request
-func Measure(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	requestSeconds.WithLabelValues(info.FullMethod).Observe(time.Since(start).Seconds())
-	if err != nil {
-		requestErrors.WithLabelValues(info.FullMethod, status.Code(err).String()).Inc()
-	}
-	return resp, err
-}

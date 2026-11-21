@@ -26,7 +26,7 @@ import (
 )
 
 // dial starts a server over an in-memory connection
-func dial(t *testing.T, s *server.Server, opts ...grpc.ServerOption) *grpc.ClientConn {
+func dial(t *testing.T, s pb.MatcherServer, opts ...grpc.ServerOption) *grpc.ClientConn {
 	t.Helper()
 
 	lis := bufconn.Listen(1 << 20)

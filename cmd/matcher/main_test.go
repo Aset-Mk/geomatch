@@ -13,6 +13,7 @@ import (
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	pb "github.com/Aset-Mk/geomatch/internal/pb/matcherv1"
+	"github.com/Aset-Mk/geomatch/internal/serve"
 )
 
 // start runs the matcher on a free port and returns its address, the stop function and the result of run
@@ -27,7 +28,7 @@ func start(t *testing.T, shutdown time.Duration) (string, context.CancelFunc, <-
 	t.Cleanup(cancel)
 
 	done := make(chan error, 1)
-	cfg := matcherConfig{CellSize: 200, DriverTTL: 10 * time.Second, ShutdownTimeout: shutdown, MaxConns: 2}
+	cfg := matcherConfig{CellSize: 200, DriverTTL: 10 * time.Second, Config: serve.Config{ShutdownTimeout: shutdown, MaxConns: 2}}
 	go func() { done <- run(ctx, lis, cfg) }()
 	return lis.Addr().String(), cancel, done
 }
@@ -35,14 +36,14 @@ func start(t *testing.T, shutdown time.Duration) (string, context.CancelFunc, <-
 func TestHealth(t *testing.T) {
 	addr, stop, done := start(t, time.Second)
 
-	if err := check(addr); err != nil {
+	if err := serve.Check(addr); err != nil {
 		t.Fatalf("check on a running matcher: %v", err)
 	}
 	stop()
 	if err := <-done; err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if err := check(addr); err == nil {
+	if err := serve.Check(addr); err == nil {
 		t.Error("check passed on a stopped matcher, want error")
 	}
 }
@@ -105,7 +106,7 @@ func TestConnectionLimit(t *testing.T) {
 
 	_ = held[0].Close()
 	deadline := time.Now().Add(2 * time.Second)
-	for check(addr) != nil {
+	for serve.Check(addr) != nil {
 		if time.Now().After(deadline) {
 			t.Fatal("matcher takes no new connection after an old one closed")
 		}
