@@ -296,7 +296,7 @@
         {
           "refId": "B",
           "expr": "geomatch_connections",
-          "legendFormat": "connections",
+          "legendFormat": "{{job}} connections",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -306,6 +306,15 @@
           "refId": "C",
           "expr": "geomatch_update_streams",
           "legendFormat": "update streams",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "geomatch_gateway_streams",
+          "legendFormat": "gateway streams",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
@@ -517,6 +526,152 @@
           "refId": "B",
           "expr": "rate(go_gc_duration_seconds_count[10s])",
           "legendFormat": "GC cycles per second {{job}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Delay from Kafka to the index",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(geomatch_update_delay_seconds_bucket[10s])))",
+          "legendFormat": "p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(geomatch_update_delay_seconds_bucket[10s])))",
+          "legendFormat": "p99",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.999, sum by (le) (rate(geomatch_update_delay_seconds_bucket[10s])))",
+          "legendFormat": "p99.9",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Kafka: written, lag, errors",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(geomatch_gateway_records_total[10s])",
+          "legendFormat": "written by gateway /s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "geomatch_kafka_lag",
+          "legendFormat": "lag in matcher",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "rate(geomatch_gateway_record_errors_total[10s])",
+          "legendFormat": "gateway errors /s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "D",
+          "expr": "rate(geomatch_stale_updates_skipped_total[10s])",
+          "legendFormat": "stale skipped /s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "refId": "E",
+          "expr": "rate(geomatch_bad_records_total[10s])",
+          "legendFormat": "bad records /s",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

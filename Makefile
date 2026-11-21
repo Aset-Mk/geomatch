@@ -2,6 +2,7 @@
 
 build:
 	go build -o bin/matcher ./cmd/matcher
+	go build -o bin/gateway ./cmd/gateway
 	go build -o bin/loadgen ./cmd/loadgen
 	go build -o bin/badclient ./tools/badclient
 

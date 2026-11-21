@@ -1,7 +1,50 @@
 services:
+  kafka:
+    image: apache/kafka:4.1.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "9094:9094"
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  gateway:
+    build: .
+    command: ["/gateway"]
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "50052:50052"
+      - "2113:2113"
+    healthcheck:
+      test: ["CMD", "/gateway", "-health"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    stop_grace_period: 15s
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   matcher:
     build: .
     command: ["/matcher"]
+    environment:
+      KAFKA_BROKERS: kafka:9092
     ports:
       - "50051:50051"
       - "2112:2112"
@@ -11,17 +54,33 @@ services:
       timeout: 2s
       retries: 15
     stop_grace_period: 10s
+    depends_on:
+      kafka:
+        condition: service_healthy
 
-  loadgen:
+  drivers:
+    build: .
+    command: ["/loadgen"]
+    environment:
+      MATCHER_ADDR: gateway:50052
+      ORDER_RATE: "0"
+      DRIVER_WORKERS: "4"
+      UPDATE_BATCH: "10"
+      DURATION: 24h
+      OUT: /tmp/results.json
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+  orders:
     build: .
     command: ["/loadgen"]
     environment:
       MATCHER_ADDR: matcher:50051
       MATCHER_CONNS: "4"
+      DRIVERS: "0"
       ORDER_INFLIGHT: "1000"
       ORDER_RATE: "1000"
-      DRIVER_WORKERS: "4"
-      UPDATE_BATCH: "10"
       DURATION: 24h
       METRICS_ADDR: ":2112"
       OUT: /tmp/results.json
