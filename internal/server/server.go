@@ -24,6 +24,11 @@ const MaxK = 100
 // maxApply is how many updates go into the index under one lock, so a huge message cannot stall searches
 const maxApply = 100
 
+// remote is an index behind the network, its search can fail
+type remote interface {
+	Search(p geo.Point, k int) ([]index.Neighbor, error)
+}
+
 // Server checks requests and passes them to the index, which trusts its input
 type Server struct {
 	pb.UnimplementedMatcherServer
@@ -53,7 +58,15 @@ func (s *Server) Nearest(_ context.Context, req *pb.NearestRequest) (*pb.Nearest
 		return nil, status.Errorf(codes.InvalidArgument, "k must be from 1 to %d, got %d", MaxK, req.GetK())
 	}
 
-	found := s.idx.Nearest(p, int(req.GetK()))
+	var found []index.Neighbor
+	if r, ok := s.idx.(remote); ok {
+		found, err = r.Search(p, int(req.GetK()))
+		if err != nil {
+			return nil, status.Errorf(codes.Unavailable, "index: %v", err)
+		}
+	} else {
+		found = s.idx.Nearest(p, int(req.GetK()))
+	}
 	resp := &pb.NearestResponse{Neighbors: make([]*pb.Neighbor, len(found))}
 	for i, n := range found {
 		resp.Neighbors[i] = &pb.Neighbor{DriverId: uint64(n.ID), DistanceM: n.Dist}

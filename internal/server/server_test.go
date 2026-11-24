@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,6 +22,7 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/geo"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	pb "github.com/Aset-Mk/geomatch/internal/pb/matcherv1"
+	"github.com/Aset-Mk/geomatch/internal/redisindex"
 	"github.com/Aset-Mk/geomatch/internal/server"
 	"github.com/Aset-Mk/geomatch/internal/sim"
 )
@@ -250,5 +252,21 @@ func TestFleetMatchesLocalIndex(t *testing.T) {
 				t.Fatalf("Nearest(%v)[%d] = driver %d, want %d", p, i, got[i].ID, want[i].ID)
 			}
 		}
+	}
+}
+
+func TestNearestReportsRedisFailure(t *testing.T) {
+	srv := miniredis.RunT(t)
+	rdb, closeRedis, err := redisindex.Open(srv.Addr(), "drivers", 1000)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer closeRedis()
+	c := pb.NewMatcherClient(dial(t, server.New(rdb)))
+	srv.Close()
+
+	_, err = c.Nearest(context.Background(), &pb.NearestRequest{Point: &pb.Point{Lat: 55.75, Lon: 37.61}, K: 5})
+	if status.Code(err) != codes.Unavailable {
+		t.Fatalf("Nearest with Redis down returned %v, want Unavailable", err)
 	}
 }

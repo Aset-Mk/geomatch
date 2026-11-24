@@ -18,8 +18,10 @@ type loadgenConfig struct {
 	Seed          uint64
 	Out           string
 	CPUProfile    string  // empty disables profiling
-	Index         string  // naive or grid
+	Index         string  // naive, grid or redis
 	CellSize      float64 // grid cell side, meters
+	RedisAddr     string
+	RedisRadius   float64 // meters, a search widens from it until k drivers are found
 	OrderWorkers  int
 	OrderInflight int // unanswered orders per worker, 0 waits for each answer
 	DriverWorkers int
@@ -44,6 +46,8 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 		CPUProfile:    config.Env("CPU_PROFILE", "", config.String, &errs),
 		Index:         config.Env("INDEX", "naive", config.String, &errs),
 		CellSize:      config.Env("CELL_SIZE", 200.0, config.Float, &errs),
+		RedisAddr:     config.Env("REDIS_ADDR", "localhost:6379", config.String, &errs),
+		RedisRadius:   config.Env("REDIS_RADIUS", 250.0, config.Float, &errs),
 		OrderWorkers:  config.Env("ORDER_WORKERS", 1, strconv.Atoi, &errs),
 		OrderInflight: config.Env("ORDER_INFLIGHT", 0, strconv.Atoi, &errs),
 		DriverWorkers: config.Env("DRIVER_WORKERS", 1, strconv.Atoi, &errs),
@@ -95,8 +99,14 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 			errs = append(errs, errors.New("DRIVERS must be >= DRIVER_WORKERS"))
 		}
 	}
-	if cfg.Index != "naive" && cfg.Index != "grid" {
-		errs = append(errs, fmt.Errorf("INDEX must be naive or grid, got %q", cfg.Index))
+	if cfg.Index != "naive" && cfg.Index != "grid" && cfg.Index != "redis" {
+		errs = append(errs, fmt.Errorf("INDEX must be naive, grid or redis, got %q", cfg.Index))
+	}
+	if cfg.Index == "redis" && cfg.MatcherAddr != "" {
+		errs = append(errs, errors.New("INDEX=redis runs in this process, it cannot go with MATCHER_ADDR"))
+	}
+	if cfg.RedisRadius <= 0 {
+		errs = append(errs, errors.New("REDIS_RADIUS must be > 0"))
 	}
 	if cfg.CellSize <= 0 {
 		errs = append(errs, errors.New("CELL_SIZE must be > 0"))

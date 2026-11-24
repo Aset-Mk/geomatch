@@ -20,6 +20,7 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/logging"
 	pb "github.com/Aset-Mk/geomatch/internal/pb/matcherv1"
+	"github.com/Aset-Mk/geomatch/internal/redisindex"
 	"github.com/Aset-Mk/geomatch/internal/serve"
 	"github.com/Aset-Mk/geomatch/internal/server"
 	"github.com/Aset-Mk/geomatch/internal/sim"
@@ -61,7 +62,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "max_conns", mcfg.MaxConns, "kafka_brokers", mcfg.KafkaBrokers, "kafka_topic", mcfg.KafkaTopic)
+	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "index", mcfg.Index, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "max_conns", mcfg.MaxConns, "kafka_brokers", mcfg.KafkaBrokers, "kafka_topic", mcfg.KafkaTopic)
 	if err := run(ctx, lis, mcfg); err != nil {
 		slog.Error("serve", "err", err)
 		os.Exit(1)
@@ -72,7 +73,16 @@ func main() {
 // run serves on lis until ctx is done, then lets open requests finish
 func run(ctx context.Context, lis net.Listener, cfg matcherConfig) error {
 	b := sim.CityBounds
-	m := server.New(index.NewGrid(cfg.CellSize, (b.Min.Lat+b.Max.Lat)/2))
+	var idx index.Index = index.NewGrid(cfg.CellSize, (b.Min.Lat+b.Max.Lat)/2)
+	if cfg.Index == "redis" {
+		rdb, closeRedis, err := redisindex.Open(cfg.RedisAddr, "drivers", cfg.RedisRadius)
+		if err != nil {
+			return fmt.Errorf("redis: %w", err)
+		}
+		defer closeRedis()
+		idx = rdb
+	}
+	m := server.New(idx)
 
 	svc := serve.New(cfg.Config)
 	pb.RegisterMatcherServer(svc.GRPC, m)

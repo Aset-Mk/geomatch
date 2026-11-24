@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -11,7 +12,10 @@ import (
 
 type matcherConfig struct {
 	ListenAddr   string
-	CellSize     float64       // grid cell side, meters
+	Index        string  // grid or redis
+	CellSize     float64 // grid cell side, meters
+	RedisAddr    string
+	RedisRadius  float64       // meters, a search widens from it until k drivers are found
 	DriverTTL    time.Duration // a driver silent for longer is removed
 	KafkaBrokers []string      // empty takes driver positions only over gRPC
 	KafkaTopic   string
@@ -24,7 +28,10 @@ func loadMatcherConfig() (matcherConfig, error) {
 	var errs []error
 	cfg := matcherConfig{
 		ListenAddr:      config.Env("LISTEN_ADDR", ":50051", config.String, &errs),
+		Index:           config.Env("INDEX", "grid", config.String, &errs),
 		CellSize:        config.Env("CELL_SIZE", 200.0, config.Float, &errs),
+		RedisAddr:       config.Env("REDIS_ADDR", "localhost:6379", config.String, &errs),
+		RedisRadius:     config.Env("REDIS_RADIUS", 250.0, config.Float, &errs),
 		DriverTTL:       config.Env("DRIVER_TTL", 10*time.Second, time.ParseDuration, &errs),
 		KafkaBrokers:    config.Env("KAFKA_BROKERS", nil, config.List, &errs),
 		KafkaTopic:      config.Env("KAFKA_TOPIC", "driver-positions", config.String, &errs),
@@ -36,6 +43,12 @@ func loadMatcherConfig() (matcherConfig, error) {
 		},
 	}
 
+	if cfg.Index != "grid" && cfg.Index != "redis" {
+		errs = append(errs, fmt.Errorf("INDEX must be grid or redis, got %q", cfg.Index))
+	}
+	if cfg.RedisRadius <= 0 {
+		errs = append(errs, errors.New("REDIS_RADIUS must be > 0"))
+	}
 	if cfg.CellSize <= 0 {
 		errs = append(errs, errors.New("CELL_SIZE must be > 0"))
 	}

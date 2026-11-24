@@ -26,6 +26,7 @@ import (
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/load"
 	"github.com/Aset-Mk/geomatch/internal/logging"
+	"github.com/Aset-Mk/geomatch/internal/redisindex"
 	"github.com/Aset-Mk/geomatch/internal/sim"
 )
 
@@ -44,7 +45,7 @@ func main() {
 		slog.Error("invalid loadgen config", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("loadgen started", "matcher_addr", lcfg.MatcherAddr, "matcher_conns", lcfg.MatcherConns, "index", lcfg.Index, "cell_size", lcfg.CellSize, "order_workers", lcfg.OrderWorkers, "order_inflight", lcfg.OrderInflight, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "driver_conns", lcfg.DriverConns, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
+	slog.Info("loadgen started", "matcher_addr", lcfg.MatcherAddr, "matcher_conns", lcfg.MatcherConns, "index", lcfg.Index, "cell_size", lcfg.CellSize, "redis_radius", lcfg.RedisRadius, "order_workers", lcfg.OrderWorkers, "order_inflight", lcfg.OrderInflight, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "driver_conns", lcfg.DriverConns, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
 
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
 
@@ -52,6 +53,17 @@ func main() {
 	var idx index.Index = index.NewNaive()
 	if lcfg.Index == "grid" {
 		idx = index.NewGrid(lcfg.CellSize, (b.Min.Lat+b.Max.Lat)/2)
+	}
+	var rdb *redisindex.Index
+	if lcfg.Index == "redis" {
+		var closeRedis func()
+		rdb, closeRedis, err = redisindex.Open(lcfg.RedisAddr, "drivers", lcfg.RedisRadius)
+		if err != nil {
+			slog.Error("redis", "err", err)
+			os.Exit(1)
+		}
+		defer closeRedis()
+		idx = rdb
 	}
 	var remote *client.Client
 	if lcfg.MatcherAddr != "" {
@@ -105,6 +117,10 @@ func main() {
 			slog.Error("fill matcher", "err", err)
 			os.Exit(1)
 		}
+	}
+	if rdb != nil && rdb.Err() != nil {
+		slog.Error("fill redis", "err", rdb.Err())
+		os.Exit(1)
 	}
 	slog.Info("drivers sent", "took", time.Since(began).String())
 
@@ -191,6 +207,10 @@ func main() {
 			slog.Error("matcher", "err", err)
 			os.Exit(1)
 		}
+	}
+	if rdb != nil && rdb.Err() != nil {
+		slog.Error("redis", "err", rdb.Err())
+		os.Exit(1)
 	}
 
 	rec := recs[0]
