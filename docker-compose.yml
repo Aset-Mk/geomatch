@@ -22,6 +22,14 @@ services:
       timeout: 10s
       retries: 20
 
+  redis:
+    image: redis:8.2.2
+    # the index comes back from Kafka, a snapshot to disk would only fork under load
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    profiles: ["redis"]
+
   gateway:
     build: .
     command: ["/gateway"]
