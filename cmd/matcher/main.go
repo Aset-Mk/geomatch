@@ -12,10 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/rueidis"
 	"github.com/twmb/franz-go/pkg/kgo"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/Aset-Mk/geomatch/internal/config"
+	"github.com/Aset-Mk/geomatch/internal/dispatch"
 	"github.com/Aset-Mk/geomatch/internal/feed"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/logging"
@@ -62,7 +64,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "index", mcfg.Index, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "max_conns", mcfg.MaxConns, "kafka_brokers", mcfg.KafkaBrokers, "kafka_topic", mcfg.KafkaTopic)
+	slog.Info("matcher started", "addr", lis.Addr().String(), "metrics_addr", mcfg.MetricsAddr, "index", mcfg.Index, "cell_size", mcfg.CellSize, "driver_ttl", mcfg.DriverTTL.String(), "assign", mcfg.Assign, "candidates", mcfg.Candidates, "max_offers", mcfg.MaxOffers, "offer_timeout", mcfg.OfferTimeout.String(), "max_conns", mcfg.MaxConns, "kafka_brokers", mcfg.KafkaBrokers, "kafka_topic", mcfg.KafkaTopic)
 	if err := run(ctx, lis, mcfg); err != nil {
 		slog.Error("serve", "err", err)
 		os.Exit(1)
@@ -86,6 +88,15 @@ func run(ctx context.Context, lis net.Listener, cfg matcherConfig) error {
 
 	svc := serve.New(cfg.Config)
 	pb.RegisterMatcherServer(svc.GRPC, m)
+	if cfg.Assign {
+		rc, err := rueidis.NewClient(rueidis.ClientOption{InitAddress: []string{cfg.RedisAddr}, DisableCache: true})
+		if err != nil {
+			return fmt.Errorf("redis: %w", err)
+		}
+		defer rc.Close()
+		st := dispatch.NewStore(rc)
+		pb.RegisterOrdersServer(svc.GRPC, dispatch.New(idx, st, dispatch.Config{Candidates: cfg.Candidates, MaxOffers: cfg.MaxOffers, OfferTimeout: cfg.OfferTimeout}))
+	}
 
 	// a broken Kafka stops the matcher as a signal does
 	ctx, cancel := context.WithCancelCause(ctx)

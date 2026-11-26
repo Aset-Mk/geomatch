@@ -195,3 +195,231 @@ var Matcher_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "api/matcher/v1/matcher.proto",
 }
+
+const (
+	Orders_CreateOrder_FullMethodName   = "/matcher.v1.Orders/CreateOrder"
+	Orders_Offers_FullMethodName        = "/matcher.v1.Orders/Offers"
+	Orders_AnswerOffer_FullMethodName   = "/matcher.v1.Orders/AnswerOffer"
+	Orders_CompleteOrder_FullMethodName = "/matcher.v1.Orders/CompleteOrder"
+)
+
+// OrdersClient is the client API for Orders service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type OrdersClient interface {
+	// CreateOrder offers the order to the nearest free drivers in turn and answers once one accepts or none is left
+	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error)
+	// Offers streams every offer the matcher makes, the side that plays drivers answers them with AnswerOffer
+	Offers(ctx context.Context, in *OffersRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Offer], error)
+	// AnswerOffer accepts or declines an offer, an offer that is no longer open gives FailedPrecondition
+	AnswerOffer(ctx context.Context, in *AnswerOfferRequest, opts ...grpc.CallOption) (*AnswerOfferResponse, error)
+	// CompleteOrder ends the ride and frees the driver
+	CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*CompleteOrderResponse, error)
+}
+
+type ordersClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewOrdersClient(cc grpc.ClientConnInterface) OrdersClient {
+	return &ordersClient{cc}
+}
+
+func (c *ordersClient) CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateOrderResponse)
+	err := c.cc.Invoke(ctx, Orders_CreateOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ordersClient) Offers(ctx context.Context, in *OffersRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Offer], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Orders_ServiceDesc.Streams[0], Orders_Offers_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[OffersRequest, Offer]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Orders_OffersClient = grpc.ServerStreamingClient[Offer]
+
+func (c *ordersClient) AnswerOffer(ctx context.Context, in *AnswerOfferRequest, opts ...grpc.CallOption) (*AnswerOfferResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnswerOfferResponse)
+	err := c.cc.Invoke(ctx, Orders_AnswerOffer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ordersClient) CompleteOrder(ctx context.Context, in *CompleteOrderRequest, opts ...grpc.CallOption) (*CompleteOrderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompleteOrderResponse)
+	err := c.cc.Invoke(ctx, Orders_CompleteOrder_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// OrdersServer is the server API for Orders service.
+// All implementations must embed UnimplementedOrdersServer
+// for forward compatibility.
+type OrdersServer interface {
+	// CreateOrder offers the order to the nearest free drivers in turn and answers once one accepts or none is left
+	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error)
+	// Offers streams every offer the matcher makes, the side that plays drivers answers them with AnswerOffer
+	Offers(*OffersRequest, grpc.ServerStreamingServer[Offer]) error
+	// AnswerOffer accepts or declines an offer, an offer that is no longer open gives FailedPrecondition
+	AnswerOffer(context.Context, *AnswerOfferRequest) (*AnswerOfferResponse, error)
+	// CompleteOrder ends the ride and frees the driver
+	CompleteOrder(context.Context, *CompleteOrderRequest) (*CompleteOrderResponse, error)
+	mustEmbedUnimplementedOrdersServer()
+}
+
+// UnimplementedOrdersServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedOrdersServer struct{}
+
+func (UnimplementedOrdersServer) CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateOrder not implemented")
+}
+func (UnimplementedOrdersServer) Offers(*OffersRequest, grpc.ServerStreamingServer[Offer]) error {
+	return status.Error(codes.Unimplemented, "method Offers not implemented")
+}
+func (UnimplementedOrdersServer) AnswerOffer(context.Context, *AnswerOfferRequest) (*AnswerOfferResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnswerOffer not implemented")
+}
+func (UnimplementedOrdersServer) CompleteOrder(context.Context, *CompleteOrderRequest) (*CompleteOrderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompleteOrder not implemented")
+}
+func (UnimplementedOrdersServer) mustEmbedUnimplementedOrdersServer() {}
+func (UnimplementedOrdersServer) testEmbeddedByValue()                {}
+
+// UnsafeOrdersServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to OrdersServer will
+// result in compilation errors.
+type UnsafeOrdersServer interface {
+	mustEmbedUnimplementedOrdersServer()
+}
+
+func RegisterOrdersServer(s grpc.ServiceRegistrar, srv OrdersServer) {
+	// If the following call panics, it indicates UnimplementedOrdersServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&Orders_ServiceDesc, srv)
+}
+
+func _Orders_CreateOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrdersServer).CreateOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Orders_CreateOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrdersServer).CreateOrder(ctx, req.(*CreateOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Orders_Offers_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(OffersRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(OrdersServer).Offers(m, &grpc.GenericServerStream[OffersRequest, Offer]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Orders_OffersServer = grpc.ServerStreamingServer[Offer]
+
+func _Orders_AnswerOffer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnswerOfferRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrdersServer).AnswerOffer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Orders_AnswerOffer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrdersServer).AnswerOffer(ctx, req.(*AnswerOfferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Orders_CompleteOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrdersServer).CompleteOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Orders_CompleteOrder_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrdersServer).CompleteOrder(ctx, req.(*CompleteOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Orders_ServiceDesc is the grpc.ServiceDesc for Orders service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Orders_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "matcher.v1.Orders",
+	HandlerType: (*OrdersServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateOrder",
+			Handler:    _Orders_CreateOrder_Handler,
+		},
+		{
+			MethodName: "AnswerOffer",
+			Handler:    _Orders_AnswerOffer_Handler,
+		},
+		{
+			MethodName: "CompleteOrder",
+			Handler:    _Orders_CompleteOrder_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Offers",
+			Handler:       _Orders_Offers_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "api/matcher/v1/matcher.proto",
+}

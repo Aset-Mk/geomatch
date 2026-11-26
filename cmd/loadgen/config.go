@@ -32,6 +32,10 @@ type loadgenConfig struct {
 	MetricsAddr   string   // empty serves no metrics
 	DriverConns   int      // 0 sends all drivers over one stream, otherwise each driver has its own stream
 	DriverAddrs   []string // matcher addresses for driver connections, one address has only ~28k local ports
+	Assign        bool     // orders go through the Orders API and this process answers the offers
+	OfferDecline  float64  // share of offers declined
+	OfferIgnore   float64  // share of offers left without an answer
+	RideTime      time.Duration
 }
 
 func loadLoadgenConfig() (loadgenConfig, error) {
@@ -57,6 +61,10 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 		MatcherConns:  config.Env("MATCHER_CONNS", 1, strconv.Atoi, &errs),
 		MetricsAddr:   config.Env("METRICS_ADDR", "", config.String, &errs),
 		DriverConns:   config.Env("DRIVER_CONNS", 0, strconv.Atoi, &errs),
+		Assign:        config.Env("ASSIGN", false, strconv.ParseBool, &errs),
+		OfferDecline:  config.Env("OFFER_DECLINE", 0.0, config.Float, &errs),
+		OfferIgnore:   config.Env("OFFER_IGNORE", 0.0, config.Float, &errs),
+		RideTime:      config.Env("RIDE_TIME", 5*time.Second, time.ParseDuration, &errs),
 	}
 
 	cfg.DriverAddrs = strings.Split(config.Env("DRIVER_ADDRS", cfg.MatcherAddr, config.String, &errs), ",")
@@ -104,6 +112,15 @@ func loadLoadgenConfig() (loadgenConfig, error) {
 	}
 	if cfg.Index == "redis" && cfg.MatcherAddr != "" {
 		errs = append(errs, errors.New("INDEX=redis runs in this process, it cannot go with MATCHER_ADDR"))
+	}
+	if cfg.Assign && (cfg.MatcherAddr == "" || cfg.OrderInflight == 0) {
+		errs = append(errs, errors.New("ASSIGN needs MATCHER_ADDR and ORDER_INFLIGHT"))
+	}
+	if cfg.OfferDecline < 0 || cfg.OfferIgnore < 0 || cfg.OfferDecline+cfg.OfferIgnore > 1 {
+		errs = append(errs, errors.New("OFFER_DECLINE and OFFER_IGNORE must be >= 0 and add up to <= 1"))
+	}
+	if cfg.RideTime <= 0 {
+		errs = append(errs, errors.New("RIDE_TIME must be > 0"))
 	}
 	if cfg.RedisRadius <= 0 {
 		errs = append(errs, errors.New("REDIS_RADIUS must be > 0"))

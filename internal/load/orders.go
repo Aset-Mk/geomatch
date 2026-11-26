@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Aset-Mk/geomatch/internal/geo"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/sim"
 )
@@ -29,8 +30,8 @@ func RunOrders(ctx context.Context, idx index.Index, b sim.Bounds, r *rand.Rand,
 	}
 }
 
-// RunOrdersAsync is RunOrders that does not wait for answers, with inflight orders unanswered the schedule falls behind
-func RunOrdersAsync(ctx context.Context, idx index.Index, b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, inflight int, record func(time.Duration)) {
+// RunOrdersAsync calls order rate times per second without waiting for it to return, with inflight calls unfinished the schedule falls behind
+func RunOrdersAsync(ctx context.Context, order func(geo.Point), b sim.Bounds, r *rand.Rand, rate int, dur time.Duration, inflight int, record func(time.Duration)) {
 	interval := time.Second / time.Duration(rate)
 	n := int(dur / interval)
 	start := time.Now()
@@ -47,7 +48,7 @@ func RunOrdersAsync(ctx context.Context, idx index.Index, b sim.Bounds, r *rand.
 		p := b.RandomPoint(r)
 		sem <- struct{}{}
 		go func() {
-			idx.Nearest(p, 5)
+			order(p)
 			d := time.Since(scheduled)
 			mu.Lock()
 			record(d)

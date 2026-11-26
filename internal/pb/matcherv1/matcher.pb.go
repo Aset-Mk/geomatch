@@ -433,6 +433,391 @@ func (*RemoveDriverResponse) Descriptor() ([]byte, []int) {
 	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{8}
 }
 
+type CreateOrderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pickup        *Point                 `protobuf:"bytes,1,opt,name=pickup,proto3" json:"pickup,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateOrderRequest) Reset() {
+	*x = CreateOrderRequest{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateOrderRequest) ProtoMessage() {}
+
+func (x *CreateOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateOrderRequest.ProtoReflect.Descriptor instead.
+func (*CreateOrderRequest) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CreateOrderRequest) GetPickup() *Point {
+	if x != nil {
+		return x.Pickup
+	}
+	return nil
+}
+
+type CreateOrderResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	OrderId uint64                 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	// false when no free driver accepted the order
+	Assigned      bool   `protobuf:"varint,2,opt,name=assigned,proto3" json:"assigned,omitempty"`
+	DriverId      uint64 `protobuf:"varint,3,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateOrderResponse) Reset() {
+	*x = CreateOrderResponse{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateOrderResponse) ProtoMessage() {}
+
+func (x *CreateOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateOrderResponse.ProtoReflect.Descriptor instead.
+func (*CreateOrderResponse) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *CreateOrderResponse) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *CreateOrderResponse) GetAssigned() bool {
+	if x != nil {
+		return x.Assigned
+	}
+	return false
+}
+
+func (x *CreateOrderResponse) GetDriverId() uint64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type OffersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OffersRequest) Reset() {
+	*x = OffersRequest{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OffersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OffersRequest) ProtoMessage() {}
+
+func (x *OffersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OffersRequest.ProtoReflect.Descriptor instead.
+func (*OffersRequest) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{11}
+}
+
+type Offer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       uint64                 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId      uint64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Pickup        *Point                 `protobuf:"bytes,3,opt,name=pickup,proto3" json:"pickup,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Offer) Reset() {
+	*x = Offer{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Offer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Offer) ProtoMessage() {}
+
+func (x *Offer) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Offer.ProtoReflect.Descriptor instead.
+func (*Offer) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Offer) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *Offer) GetDriverId() uint64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *Offer) GetPickup() *Point {
+	if x != nil {
+		return x.Pickup
+	}
+	return nil
+}
+
+type AnswerOfferRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       uint64                 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId      uint64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	Accept        bool                   `protobuf:"varint,3,opt,name=accept,proto3" json:"accept,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerOfferRequest) Reset() {
+	*x = AnswerOfferRequest{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerOfferRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerOfferRequest) ProtoMessage() {}
+
+func (x *AnswerOfferRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerOfferRequest.ProtoReflect.Descriptor instead.
+func (*AnswerOfferRequest) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AnswerOfferRequest) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *AnswerOfferRequest) GetDriverId() uint64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+func (x *AnswerOfferRequest) GetAccept() bool {
+	if x != nil {
+		return x.Accept
+	}
+	return false
+}
+
+type AnswerOfferResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerOfferResponse) Reset() {
+	*x = AnswerOfferResponse{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerOfferResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerOfferResponse) ProtoMessage() {}
+
+func (x *AnswerOfferResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerOfferResponse.ProtoReflect.Descriptor instead.
+func (*AnswerOfferResponse) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{14}
+}
+
+type CompleteOrderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderId       uint64                 `protobuf:"varint,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	DriverId      uint64                 `protobuf:"varint,2,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteOrderRequest) Reset() {
+	*x = CompleteOrderRequest{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteOrderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteOrderRequest) ProtoMessage() {}
+
+func (x *CompleteOrderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteOrderRequest.ProtoReflect.Descriptor instead.
+func (*CompleteOrderRequest) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CompleteOrderRequest) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *CompleteOrderRequest) GetDriverId() uint64 {
+	if x != nil {
+		return x.DriverId
+	}
+	return 0
+}
+
+type CompleteOrderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteOrderResponse) Reset() {
+	*x = CompleteOrderResponse{}
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteOrderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteOrderResponse) ProtoMessage() {}
+
+func (x *CompleteOrderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_matcher_v1_matcher_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteOrderResponse.ProtoReflect.Descriptor instead.
+func (*CompleteOrderResponse) Descriptor() ([]byte, []int) {
+	return file_api_matcher_v1_matcher_proto_rawDescGZIP(), []int{16}
+}
+
 var File_api_matcher_v1_matcher_proto protoreflect.FileDescriptor
 
 const file_api_matcher_v1_matcher_proto_rawDesc = "" +
@@ -459,11 +844,36 @@ const file_api_matcher_v1_matcher_proto_rawDesc = "" +
 	"\x15UpdateDriversResponse\"2\n" +
 	"\x13RemoveDriverRequest\x12\x1b\n" +
 	"\tdriver_id\x18\x01 \x01(\x04R\bdriverId\"\x16\n" +
-	"\x14RemoveDriverResponse2\xf8\x01\n" +
+	"\x14RemoveDriverResponse\"?\n" +
+	"\x12CreateOrderRequest\x12)\n" +
+	"\x06pickup\x18\x01 \x01(\v2\x11.matcher.v1.PointR\x06pickup\"i\n" +
+	"\x13CreateOrderResponse\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x04R\aorderId\x12\x1a\n" +
+	"\bassigned\x18\x02 \x01(\bR\bassigned\x12\x1b\n" +
+	"\tdriver_id\x18\x03 \x01(\x04R\bdriverId\"\x0f\n" +
+	"\rOffersRequest\"j\n" +
+	"\x05Offer\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x04R\aorderId\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x04R\bdriverId\x12)\n" +
+	"\x06pickup\x18\x03 \x01(\v2\x11.matcher.v1.PointR\x06pickup\"d\n" +
+	"\x12AnswerOfferRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x04R\aorderId\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x04R\bdriverId\x12\x16\n" +
+	"\x06accept\x18\x03 \x01(\bR\x06accept\"\x15\n" +
+	"\x13AnswerOfferResponse\"N\n" +
+	"\x14CompleteOrderRequest\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x04R\aorderId\x12\x1b\n" +
+	"\tdriver_id\x18\x02 \x01(\x04R\bdriverId\"\x17\n" +
+	"\x15CompleteOrderResponse2\xf8\x01\n" +
 	"\aMatcher\x12B\n" +
 	"\aNearest\x12\x1a.matcher.v1.NearestRequest\x1a\x1b.matcher.v1.NearestResponse\x12V\n" +
 	"\rUpdateDrivers\x12 .matcher.v1.UpdateDriversRequest\x1a!.matcher.v1.UpdateDriversResponse(\x01\x12Q\n" +
-	"\fRemoveDriver\x12\x1f.matcher.v1.RemoveDriverRequest\x1a .matcher.v1.RemoveDriverResponseB=Z;github.com/Aset-Mk/geomatch/internal/pb/matcherv1;matcherv1b\x06proto3"
+	"\fRemoveDriver\x12\x1f.matcher.v1.RemoveDriverRequest\x1a .matcher.v1.RemoveDriverResponse2\xb8\x02\n" +
+	"\x06Orders\x12N\n" +
+	"\vCreateOrder\x12\x1e.matcher.v1.CreateOrderRequest\x1a\x1f.matcher.v1.CreateOrderResponse\x128\n" +
+	"\x06Offers\x12\x19.matcher.v1.OffersRequest\x1a\x11.matcher.v1.Offer0\x01\x12N\n" +
+	"\vAnswerOffer\x12\x1e.matcher.v1.AnswerOfferRequest\x1a\x1f.matcher.v1.AnswerOfferResponse\x12T\n" +
+	"\rCompleteOrder\x12 .matcher.v1.CompleteOrderRequest\x1a!.matcher.v1.CompleteOrderResponseB=Z;github.com/Aset-Mk/geomatch/internal/pb/matcherv1;matcherv1b\x06proto3"
 
 var (
 	file_api_matcher_v1_matcher_proto_rawDescOnce sync.Once
@@ -477,7 +887,7 @@ func file_api_matcher_v1_matcher_proto_rawDescGZIP() []byte {
 	return file_api_matcher_v1_matcher_proto_rawDescData
 }
 
-var file_api_matcher_v1_matcher_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_api_matcher_v1_matcher_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_api_matcher_v1_matcher_proto_goTypes = []any{
 	(*Point)(nil),                 // 0: matcher.v1.Point
 	(*NearestRequest)(nil),        // 1: matcher.v1.NearestRequest
@@ -488,23 +898,41 @@ var file_api_matcher_v1_matcher_proto_goTypes = []any{
 	(*UpdateDriversResponse)(nil), // 6: matcher.v1.UpdateDriversResponse
 	(*RemoveDriverRequest)(nil),   // 7: matcher.v1.RemoveDriverRequest
 	(*RemoveDriverResponse)(nil),  // 8: matcher.v1.RemoveDriverResponse
+	(*CreateOrderRequest)(nil),    // 9: matcher.v1.CreateOrderRequest
+	(*CreateOrderResponse)(nil),   // 10: matcher.v1.CreateOrderResponse
+	(*OffersRequest)(nil),         // 11: matcher.v1.OffersRequest
+	(*Offer)(nil),                 // 12: matcher.v1.Offer
+	(*AnswerOfferRequest)(nil),    // 13: matcher.v1.AnswerOfferRequest
+	(*AnswerOfferResponse)(nil),   // 14: matcher.v1.AnswerOfferResponse
+	(*CompleteOrderRequest)(nil),  // 15: matcher.v1.CompleteOrderRequest
+	(*CompleteOrderResponse)(nil), // 16: matcher.v1.CompleteOrderResponse
 }
 var file_api_matcher_v1_matcher_proto_depIdxs = []int32{
-	0, // 0: matcher.v1.NearestRequest.point:type_name -> matcher.v1.Point
-	2, // 1: matcher.v1.NearestResponse.neighbors:type_name -> matcher.v1.Neighbor
-	0, // 2: matcher.v1.DriverUpdate.pos:type_name -> matcher.v1.Point
-	4, // 3: matcher.v1.UpdateDriversRequest.updates:type_name -> matcher.v1.DriverUpdate
-	1, // 4: matcher.v1.Matcher.Nearest:input_type -> matcher.v1.NearestRequest
-	5, // 5: matcher.v1.Matcher.UpdateDrivers:input_type -> matcher.v1.UpdateDriversRequest
-	7, // 6: matcher.v1.Matcher.RemoveDriver:input_type -> matcher.v1.RemoveDriverRequest
-	3, // 7: matcher.v1.Matcher.Nearest:output_type -> matcher.v1.NearestResponse
-	6, // 8: matcher.v1.Matcher.UpdateDrivers:output_type -> matcher.v1.UpdateDriversResponse
-	8, // 9: matcher.v1.Matcher.RemoveDriver:output_type -> matcher.v1.RemoveDriverResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: matcher.v1.NearestRequest.point:type_name -> matcher.v1.Point
+	2,  // 1: matcher.v1.NearestResponse.neighbors:type_name -> matcher.v1.Neighbor
+	0,  // 2: matcher.v1.DriverUpdate.pos:type_name -> matcher.v1.Point
+	4,  // 3: matcher.v1.UpdateDriversRequest.updates:type_name -> matcher.v1.DriverUpdate
+	0,  // 4: matcher.v1.CreateOrderRequest.pickup:type_name -> matcher.v1.Point
+	0,  // 5: matcher.v1.Offer.pickup:type_name -> matcher.v1.Point
+	1,  // 6: matcher.v1.Matcher.Nearest:input_type -> matcher.v1.NearestRequest
+	5,  // 7: matcher.v1.Matcher.UpdateDrivers:input_type -> matcher.v1.UpdateDriversRequest
+	7,  // 8: matcher.v1.Matcher.RemoveDriver:input_type -> matcher.v1.RemoveDriverRequest
+	9,  // 9: matcher.v1.Orders.CreateOrder:input_type -> matcher.v1.CreateOrderRequest
+	11, // 10: matcher.v1.Orders.Offers:input_type -> matcher.v1.OffersRequest
+	13, // 11: matcher.v1.Orders.AnswerOffer:input_type -> matcher.v1.AnswerOfferRequest
+	15, // 12: matcher.v1.Orders.CompleteOrder:input_type -> matcher.v1.CompleteOrderRequest
+	3,  // 13: matcher.v1.Matcher.Nearest:output_type -> matcher.v1.NearestResponse
+	6,  // 14: matcher.v1.Matcher.UpdateDrivers:output_type -> matcher.v1.UpdateDriversResponse
+	8,  // 15: matcher.v1.Matcher.RemoveDriver:output_type -> matcher.v1.RemoveDriverResponse
+	10, // 16: matcher.v1.Orders.CreateOrder:output_type -> matcher.v1.CreateOrderResponse
+	12, // 17: matcher.v1.Orders.Offers:output_type -> matcher.v1.Offer
+	14, // 18: matcher.v1.Orders.AnswerOffer:output_type -> matcher.v1.AnswerOfferResponse
+	16, // 19: matcher.v1.Orders.CompleteOrder:output_type -> matcher.v1.CompleteOrderResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_api_matcher_v1_matcher_proto_init() }
@@ -518,9 +946,9 @@ func file_api_matcher_v1_matcher_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_matcher_v1_matcher_proto_rawDesc), len(file_api_matcher_v1_matcher_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   17,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_api_matcher_v1_matcher_proto_goTypes,
 		DependencyIndexes: file_api_matcher_v1_matcher_proto_depIdxs,

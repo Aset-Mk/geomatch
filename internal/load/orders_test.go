@@ -101,7 +101,7 @@ func TestRunOrdersAsyncLimitsInflight(t *testing.T) {
 	r := rand.New(rand.NewPCG(1, 1))
 
 	n := 0
-	RunOrdersAsync(t.Context(), idx, sim.CityBounds, r, 1000, 100*time.Millisecond, 5, func(time.Duration) { n++ })
+	RunOrdersAsync(t.Context(), func(p geo.Point) { idx.Nearest(p, 5) }, sim.CityBounds, r, 1000, 100*time.Millisecond, 5, func(time.Duration) { n++ })
 
 	if n != 100 {
 		t.Errorf("recorded %d orders, want 100", n)

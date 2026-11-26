@@ -17,7 +17,11 @@ type matcherConfig struct {
 	RedisAddr    string
 	RedisRadius  float64       // meters, a search widens from it until k drivers are found
 	DriverTTL    time.Duration // a driver silent for longer is removed
-	KafkaBrokers []string      // empty takes driver positions only over gRPC
+	Assign       bool          // serve the Orders API, driver states live in Redis at RedisAddr
+	Candidates   int
+	MaxOffers    int
+	OfferTimeout time.Duration
+	KafkaBrokers []string // empty takes driver positions only over gRPC
 	KafkaTopic   string
 	// partitions of a topic the matcher creates, a topic that exists keeps its own
 	KafkaPartitions int32
@@ -33,6 +37,10 @@ func loadMatcherConfig() (matcherConfig, error) {
 		RedisAddr:       config.Env("REDIS_ADDR", "localhost:6379", config.String, &errs),
 		RedisRadius:     config.Env("REDIS_RADIUS", 250.0, config.Float, &errs),
 		DriverTTL:       config.Env("DRIVER_TTL", 10*time.Second, time.ParseDuration, &errs),
+		Assign:          config.Env("ASSIGN", false, strconv.ParseBool, &errs),
+		Candidates:      config.Env("CANDIDATES", 10, strconv.Atoi, &errs),
+		MaxOffers:       config.Env("MAX_OFFERS", 3, strconv.Atoi, &errs),
+		OfferTimeout:    config.Env("OFFER_TIMEOUT", 10*time.Second, time.ParseDuration, &errs),
 		KafkaBrokers:    config.Env("KAFKA_BROKERS", nil, config.List, &errs),
 		KafkaTopic:      config.Env("KAFKA_TOPIC", "driver-positions", config.String, &errs),
 		KafkaPartitions: config.Env("KAFKA_PARTITIONS", int32(8), config.Int32, &errs),
@@ -48,6 +56,12 @@ func loadMatcherConfig() (matcherConfig, error) {
 	}
 	if cfg.RedisRadius <= 0 {
 		errs = append(errs, errors.New("REDIS_RADIUS must be > 0"))
+	}
+	if cfg.Candidates <= 0 || cfg.MaxOffers <= 0 {
+		errs = append(errs, errors.New("CANDIDATES and MAX_OFFERS must be > 0"))
+	}
+	if cfg.OfferTimeout <= 0 {
+		errs = append(errs, errors.New("OFFER_TIMEOUT must be > 0"))
 	}
 	if cfg.CellSize <= 0 {
 		errs = append(errs, errors.New("CELL_SIZE must be > 0"))

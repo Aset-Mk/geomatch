@@ -50,3 +50,51 @@ message RemoveDriverRequest {
 }
 
 message RemoveDriverResponse {}
+
+service Orders {
+  // CreateOrder offers the order to the nearest free drivers in turn and answers once one accepts or none is left
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+
+  // Offers streams every offer the matcher makes, the side that plays drivers answers them with AnswerOffer
+  rpc Offers(OffersRequest) returns (stream Offer);
+
+  // AnswerOffer accepts or declines an offer, an offer that is no longer open gives FailedPrecondition
+  rpc AnswerOffer(AnswerOfferRequest) returns (AnswerOfferResponse);
+
+  // CompleteOrder ends the ride and frees the driver
+  rpc CompleteOrder(CompleteOrderRequest) returns (CompleteOrderResponse);
+}
+
+message CreateOrderRequest {
+  Point pickup = 1;
+}
+
+message CreateOrderResponse {
+  uint64 order_id = 1;
+  // false when no free driver accepted the order
+  bool assigned = 2;
+  uint64 driver_id = 3;
+}
+
+message OffersRequest {}
+
+message Offer {
+  uint64 order_id = 1;
+  uint64 driver_id = 2;
+  Point pickup = 3;
+}
+
+message AnswerOfferRequest {
+  uint64 order_id = 1;
+  uint64 driver_id = 2;
+  bool accept = 3;
+}
+
+message AnswerOfferResponse {}
+
+message CompleteOrderRequest {
+  uint64 order_id = 1;
+  uint64 driver_id = 2;
+}
+
+message CompleteOrderResponse {}

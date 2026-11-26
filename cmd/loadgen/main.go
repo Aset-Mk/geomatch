@@ -23,6 +23,7 @@ import (
 
 	"github.com/Aset-Mk/geomatch/internal/client"
 	"github.com/Aset-Mk/geomatch/internal/config"
+	"github.com/Aset-Mk/geomatch/internal/geo"
 	"github.com/Aset-Mk/geomatch/internal/index"
 	"github.com/Aset-Mk/geomatch/internal/load"
 	"github.com/Aset-Mk/geomatch/internal/logging"
@@ -45,7 +46,7 @@ func main() {
 		slog.Error("invalid loadgen config", "err", err)
 		os.Exit(1)
 	}
-	slog.Info("loadgen started", "matcher_addr", lcfg.MatcherAddr, "matcher_conns", lcfg.MatcherConns, "index", lcfg.Index, "cell_size", lcfg.CellSize, "redis_radius", lcfg.RedisRadius, "order_workers", lcfg.OrderWorkers, "order_inflight", lcfg.OrderInflight, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "driver_conns", lcfg.DriverConns, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed)
+	slog.Info("loadgen started", "matcher_addr", lcfg.MatcherAddr, "matcher_conns", lcfg.MatcherConns, "index", lcfg.Index, "cell_size", lcfg.CellSize, "redis_radius", lcfg.RedisRadius, "order_workers", lcfg.OrderWorkers, "order_inflight", lcfg.OrderInflight, "driver_workers", lcfg.DriverWorkers, "update_batch", lcfg.UpdateBatch, "update_linger", lcfg.UpdateLinger.String(), "driver_conns", lcfg.DriverConns, "drivers", lcfg.Drivers, "update_period", lcfg.UpdatePeriod.String(), "order_rate", lcfg.OrderRate, "duration", lcfg.Duration.String(), "seed", lcfg.Seed, "assign", lcfg.Assign, "offer_decline", lcfg.OfferDecline, "offer_ignore", lcfg.OfferIgnore, "ride_time", lcfg.RideTime.String())
 
 	driversRand := rand.New(rand.NewPCG(lcfg.Seed, 1))
 
@@ -66,6 +67,7 @@ func main() {
 		idx = rdb
 	}
 	var remote *client.Client
+	var assigner *load.Assigner
 	if lcfg.MatcherAddr != "" {
 		conns := make([]grpc.ClientConnInterface, lcfg.MatcherConns)
 		for i := range conns {
@@ -79,6 +81,15 @@ func main() {
 		}
 		remote = client.New(conns...)
 		idx = remote
+		if lcfg.Assign {
+			dc, err := grpc.NewClient(lcfg.MatcherAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				slog.Error("driver client", "err", err)
+				os.Exit(1)
+			}
+			defer func() { _ = dc.Close() }()
+			assigner = load.NewAssigner(conns, dc, lcfg.OfferDecline, lcfg.OfferIgnore, lcfg.RideTime, rand.New(rand.NewPCG(lcfg.Seed, 0)))
+		}
 	}
 	drivers := load.NewDrivers(lcfg.Drivers, b, driversRand)
 
@@ -154,6 +165,15 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	answerCtx, stopAnswers := context.WithCancel(context.Background())
+	defer stopAnswers()
+	if assigner != nil {
+		if err := assigner.Answer(answerCtx); err != nil {
+			slog.Error("offers", "err", err)
+			os.Exit(1)
+		}
+	}
+
 	// odd streams go to drivers and even ones to orders, so one worker of each keeps the old streams
 	var wg sync.WaitGroup
 	for i := range lcfg.DriverWorkers {
@@ -189,7 +209,11 @@ func main() {
 		wg.Go(func() {
 			time.Sleep(offset)
 			if lcfg.OrderInflight > 0 {
-				load.RunOrdersAsync(ctx, idx, b, r, rate, lcfg.Duration, lcfg.OrderInflight, record)
+				order := func(p geo.Point) { idx.Nearest(p, 5) }
+				if assigner != nil {
+					order = assigner.Order
+				}
+				load.RunOrdersAsync(ctx, order, b, r, rate, lcfg.Duration, lcfg.OrderInflight, record)
 				return
 			}
 			load.RunOrders(ctx, idx, b, r, rate, lcfg.Duration, record)
@@ -213,6 +237,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	var stats *load.AssignStats
+	if assigner != nil {
+		st, err := assigner.Close()
+		stopAnswers()
+		stats = &st
+		slog.Info("orders", "assigned", st.Assigned, "no_driver", st.NoDriver, "failed", st.Failed, "double", st.Double)
+		if err != nil {
+			slog.Error("assign", "err", err)
+			os.Exit(1)
+		}
+	}
+
 	rec := recs[0]
 	for _, r := range recs[1:] {
 		rec.Merge(r)
@@ -220,7 +256,10 @@ func main() {
 	sum := rec.Summary()
 	slog.Info("loadgen finished", "summary", sum)
 
-	data, err := json.MarshalIndent(sum, "", "  ")
+	data, err := json.MarshalIndent(struct {
+		load.Summary
+		*load.AssignStats
+	}{sum, stats}, "", "  ")
 	if err != nil {
 		slog.Error("encode summary", "err", err)
 		os.Exit(1)
